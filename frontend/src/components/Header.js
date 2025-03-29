@@ -1,13 +1,12 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom'; // Thêm useNavigate
+import { Link, useNavigate } from 'react-router-dom';
 
 function Header() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    // Logic đăng xuất (xóa token, state, v.v.) sẽ được thêm sau khi có backend
     console.log('User logged out');
-    navigate('/login'); // Chuyển hướng về trang đăng nhập
+    navigate('/login');
   };
 
   return (
@@ -15,7 +14,13 @@ function Header() {
       <div className="container-fluid d-flex align-items-center justify-content-between py-2">
         {/* Left: Logo and Search */}
         <div className="d-flex align-items-center gap-3">
-          <Link to="/" className="fs-2 fw-bold text-primary text-decoration-none">f</Link>
+          <Link to="/" className="text-decoration-none">
+            <img
+              src="/img/logo.png" 
+              alt="Facebook Logo"
+              style={{ width: '40px', height: '40px' }}
+            />
+          </Link>
           <input
             type="text"
             className="form-control rounded-pill"
