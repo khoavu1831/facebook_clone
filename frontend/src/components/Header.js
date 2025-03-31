@@ -37,22 +37,18 @@ function Header() {
 
         {/* Right: User Info and Icons */}
         <div className="d-flex align-items-center gap-3">
-          <div className="d-flex align-items-center gap-2">
-            <Link
-              to="/profile"
-              style={{ textDecoration: "none", color: "black" }}
-            >
-              <div className="d-flex align-items-center flex-row">
-                <img
-                  src="/img/luu.jpg"
-                  alt="User"
-                  className="rounded-circle"
-                  style={{ width: "30px", height: "30px" }}
-                />
-                <span>MaGaming</span>
-              </div>
-            </Link>
-          </div>
+          {/* User */}
+          {/* <div className="d-flex align-items-center gap-2">
+              <img
+                src="/img/luu.jpg"
+                alt="User"
+                className="rounded-circle"
+                style={{ width: "40px", height: "40px" }}
+              />
+              <span>MaGaming</span>
+          </div> */}
+          
+          {/* Notify */}
           <div className="text-secondary fs-5">
             <Link to="/">
               <img
@@ -62,6 +58,8 @@ function Header() {
               />
             </Link>
           </div>
+
+          {/* Messenger */}
           <div className="text-secondary fs-5">
             <Link to="/">
               <img
