@@ -70,10 +70,14 @@ function Header() {
             </Link>
           </div>
           <button
-            className="btn btn-outline-danger btn-sm"
+            className="btn btn-sm"
             onClick={handleLogout}
           >
-            Logout
+            <img
+              src="/img/logout.png"
+              alt="Logout Logo"
+              style={{ width: "36px", height: "36px" }}
+            />
           </button>
         </div>
       </div>
