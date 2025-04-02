@@ -57,7 +57,7 @@ function Friends() {
               className={`nav-link ${activeTab === 'requests' ? 'active' : ''}`}
               onClick={() => { setActiveTab('requests'); setCurrentPage(1); }}
             >
-              <span className="icon"></span> Yêu cầu kết bạn
+              Yêu cầu kết bạn
             </button>
           </li>
           <li className="nav-item">
@@ -65,7 +65,7 @@ function Friends() {
               className={`nav-link ${activeTab === 'friends' ? 'active' : ''}`}
               onClick={() => { setActiveTab('friends'); setCurrentPage(1); }}
             >
-              <span className="icon"></span> Danh sách bạn bè
+              Danh sách bạn bè
             </button>
           </li>
           <li className="nav-item">
@@ -73,13 +73,13 @@ function Friends() {
               className={`nav-link ${activeTab === 'suggestions' ? 'active' : ''}`}
               onClick={() => { setActiveTab('suggestions'); setCurrentPage(1); }}
             >
-              <span className="icon"></span> Gợi ý bạn bè
+              Gợi ý bạn bè
             </button>
           </li>
         </ul>
       </div>
 
-      <div className="main-content" style={{ marginTop: '3rem' }}>
+      <div className="main-content">
         <h1>
           {activeTab === 'requests' ? 'Lời mời kết bạn' : activeTab === 'friends' ? 'Danh sách bạn bè' : 'Gợi ý bạn bè'}
         </h1>

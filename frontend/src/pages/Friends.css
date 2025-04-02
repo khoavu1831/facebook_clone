@@ -34,9 +34,7 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 12px 15px;
     border-radius: 8px;
-    font-size: 0.95rem;
     font-weight: 500;
     color: #374151;
     background: none;
@@ -44,12 +42,6 @@
     text-align: left;
     cursor: pointer;
     transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-.nav-link .icon {
-    font-size: 1.1rem;
-    width: 20px;
-    text-align: center;
 }
 
 .nav-link:hover {
@@ -63,12 +55,11 @@
     font-weight: 600;
 }
 
-
 /* --- MAIN CONTENT & CARD STYLES --- */
 
 .main-content {
     flex-grow: 1;
-    padding: 25px 30px;
+    padding: 80px 30px;
 }
 
 .main-content h1 {
@@ -84,11 +75,11 @@
     transition: box-shadow 0.2s ease;
     background-color: #fff;
     overflow: hidden;
-    /* Đảm bảo các góc bo được áp dụng đúng */
 }
 
 .card:hover {
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
 }
 
 /* *** Container cho ảnh để kiểm soát tỷ lệ *** */
@@ -98,13 +89,11 @@
     /* Tạo tỷ lệ 1:1 (vuông). Thay đổi 100% nếu muốn tỷ lệ khác (ví dụ 75% cho 4:3) */
     padding-top: 100%;
     overflow: hidden;
-    background-color: #f3f4f6;
-    /* Màu nền placeholder nhẹ nhàng */
+    background-color: #f7f8fa;
 }
 
 /* *** Style cho ảnh bên trong container *** */
 .card-image-container .card-img-top {
-    /* Hoặc dùng '.card-image-container img' */
     position: absolute;
     top: 0;
     left: 0;
@@ -117,14 +106,8 @@
     border-top-right-radius: 0;
 }
 
-.card-body {
-    padding: 15px;
-    /* Có thể tăng nhẹ padding body */
-}
-
 .card-title {
     font-size: 1.05rem;
-    /* Tăng nhẹ lại cỡ chữ tiêu đề card */
     margin-bottom: 5px;
     font-weight: 600;
     white-space: nowrap;
@@ -134,15 +117,12 @@
 
 .card-text {
     font-size: 0.85rem;
-    /* Tăng nhẹ lại cỡ chữ text card */
     margin-bottom: 12px;
-    /* Tăng khoảng cách dưới */
     color: #6b7280;
 }
 
 .card .btn {
     font-size: 0.85rem;
-    /* Tăng nhẹ lại cỡ chữ nút */
     padding: 6px 12px;
 }
 
@@ -176,27 +156,16 @@
     background-color: #c82333;
 }
 
-/* Pagination button styles */
-.pagination .btn {
-    font-size: 0.9rem;
-}
-
-/* Style mới cho nút phân trang */
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
+/* CAROUSEL BUTTON */
 .carousel-btn {
-  background: #1877f2; /* Nền mờ */
+  background: #1877f2;
   border: none;
   font-size: 1.5rem;
   color: #fff;
   cursor: pointer;
   width: 30px;
   height: 30px;
-  border-radius: 50%; /* Hình tròn */
+  border-radius: 50%; 
   display: flex;
   align-items: center;
   justify-content: center;
@@ -204,13 +173,10 @@
 }
 
 .carousel-btn:disabled {
-  background: rgba(0, 0, 0, 0.2); /* Nút bị vô hiệu hóa */
-  cursor: not-allowed;
+  background: rgba(0, 0, 0, 0.2);
+  cursor: default;
 }
 
-.carousel-btn:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.8); /* Hiệu ứng hover */
-}
 
 .carousel-btn-icon {
   display: inline-block;
