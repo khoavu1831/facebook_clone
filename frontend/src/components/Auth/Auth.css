@@ -1,0 +1,109 @@
+.auth-container {
+  position: relative;
+  min-height: 100vh;
+  background-color: #f0f2f5;
+  /* Màu nền giống Facebook */
+}
+
+.links-container {
+  display: flex;
+  justify-content: center;
+  /* Căn giữa các link */
+  align-items: center;
+  /* Căn giữa theo chiều dọc */
+  gap: 10px;
+  /* Khoảng cách giữa các phần tử */
+}
+
+.separator {
+  color: #606770;
+  /* Màu của dấu gạch dọc, giống với text-muted */
+  font-size: 0.9rem;
+}
+
+/* Logo cố định */
+.fixed-logo {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+}
+
+.facebook-logo {
+  color: #1877f2;
+  font-size: 2.5rem;
+  font-weight: bold;
+  font-family: 'Helvetica', sans-serif;
+  margin: 0;
+}
+
+.card {
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.form-control,
+.form-select {
+  border-radius: 5px;
+  border: 1px solid #ced4da;
+  padding: 10px;
+  font-size: 0.9rem;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #1877f2;
+  box-shadow: 0 0 5px rgba(24, 119, 242, 0.3);
+}
+
+.btn-primary {
+  background-color: #1877f2;
+  border: none;
+  padding: 12px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border-radius: 5px;
+}
+
+.btn-primary:hover {
+  background-color: #165eab;
+}
+
+.btn-success {
+  background-color: #42b72a;
+  border: none;
+  padding: 12px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border-radius: 5px;
+}
+
+.btn-success:hover {
+  background-color: #36a420;
+}
+
+.form-label {
+  font-size: 0.9rem;
+  color: #606770;
+}
+
+.text-primary {
+  color: #1877f2 !important;
+  font-size: 0.9rem;
+  /* Kích thước chữ nhỏ hơn một chút */
+}
+
+.text-muted {
+  color: #606770 !important;
+}
+
+.form-check-input:checked {
+  background-color: #1877f2;
+  border-color: #1877f2;
+}
+
+.form-check-label {
+  font-size: 0.9rem;
+  color: #606770;
+}
