@@ -1,0 +1,184 @@
+.profile-container {
+    max-width: 900px;
+    margin: 0 auto;
+    font-family: 'Helvetica', sans-serif;
+}
+
+/* Cover Photo */
+.cover-photo-section {
+    position: relative;
+    height: 300px;
+    background: #e9ecef;
+    border-radius: 0 0 10px 10px;
+    overflow: hidden;
+}
+
+.cover-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Tự động điều chỉnh ảnh bìa để khớp khung */
+}
+
+.cover-placeholder {
+    width: 100%;
+    height: 100%;
+    background: #e9ecef;
+    /* Màu xám nếu không có ảnh bìa */
+}
+
+.cover-upload-button {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: #fff;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Profile Header */
+.profile-header {
+    display: flex;
+    align-items: flex-end;
+    position: relative;
+    top: -80px;
+    padding: 0 20px;
+}
+
+.avatar-section {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+.avatar {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 4px solid #fff;
+    object-fit: cover;
+}
+
+.avatar-placeholder {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 4px solid #fff;
+    background: #ccd0d5;
+    /* Background xám nếu không có avatar */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 60px;
+    color: #fff;
+    font-weight: bold;
+}
+
+.avatar-upload-wrapper {
+    margin-top: 10px;
+  }
+
+  .avatar-upload-button {
+    background: #1877f2;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+.profile-info {
+    margin-left: 20px;
+}
+
+.profile-name {
+    font-size: 28px;
+    margin: 0;
+    color: #1c2526;
+    /* Màu mặc định */
+}
+
+.profile-name.light-text {
+    color: #fff;
+    /* Màu trắng nếu ảnh bìa tối */
+}
+
+.profile-bio {
+    font-size: 16px;
+    color: #606770;
+    margin: 5px 0;
+}
+
+.edit-profile-button {
+    background: #e7f3ff;
+    color: #1877f2;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.edit-profile-button:hover {
+    background: #d8e8ff;
+}
+
+/* Form Section */
+.profile-form-section {
+    margin-top: -50px;
+    padding: 20px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.form-title {
+    font-size: 20px;
+    margin-bottom: 15px;
+}
+
+.profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-label {
+    font-size: 14px;
+    color: #606770;
+    margin-bottom: 5px;
+}
+
+.form-input,
+.form-textarea {
+    padding: 10px;
+    border: 1px solid #ccd0d5;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+.form-textarea {
+    resize: vertical;
+}
+
+.save-button {
+    background: #1877f2;
+    color: #fff;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.save-button:hover {
+    background: #166fe5;
+}
