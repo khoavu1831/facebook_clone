@@ -7,7 +7,7 @@
 }
 
 /* Định dạng icon */
-.action-icon {
+.sidebar-item .action-icon {
     width: 28px; /* Tăng kích thước icon */
     height: 28px;
 }

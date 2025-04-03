@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './Profile.css';
-import PostForm from '../components/Post/PostForm';
-import PostList from '../components/Post/PostList';
+import PostForm from '../../components/Post/PostForm';
+import PostList from '../../components/Post/PostList';
 
 function Profile() {
   const [name, setName] = useState('Messi Kaiwu');

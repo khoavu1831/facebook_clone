@@ -1,0 +1,36 @@
+.admin-auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(135deg, #1877F2, #3b5998);
+    /* Facebook blue gradient */
+}
+
+.admin-auth-box {
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.logo {
+    margin: 0 auto 1rem;
+}
+
+.admin-auth-box h2 {
+    margin-bottom: 1.5rem;
+    font-size: 24px;
+    color: #1877F2;
+    /* Facebook blue */
+}
+
+.admin-auth-box .btn-primary {
+    background-color: #1877F2;
+    border-color: #1877F2;
+}
+
+.admin-auth-box .btn-primary:hover {
+    background-color: #165eab;
+    border-color: #165eab;
+}
