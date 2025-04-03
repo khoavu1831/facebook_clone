@@ -1,7 +1,7 @@
 .auth-container {
   position: relative;
   min-height: 100vh;
-  background-color: #f0f2f5;
+  background: linear-gradient(135deg, #1877F2, #3b5998);
   /* Màu nền giống Facebook */
 }
 
