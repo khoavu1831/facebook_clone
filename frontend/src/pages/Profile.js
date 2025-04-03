@@ -7,26 +7,30 @@ function Profile() {
   const [name, setName] = useState('Messi Kaiwu');
   const [email, setEmail] = useState('iamkaiwu@vv.com');
   const [bio, setBio] = useState('Siuuuuuuuuuuuuu!');
-  const [avatar, setAvatar] = useState('img/logo.png'); // Không có avatar mặc định
-  const [avatarPreview, setAvatarPreview] = useState('img/logo.png');
-  const [coverPhoto, setCoverPhoto] = useState('img/anhbia.jpg');
-  const [coverPreview, setCoverPreview] = useState('img/anhbia.jpg');
+  const [avatar, setAvatar] = useState('img/messi.jpg');
+  const [avatarPreview, setAvatarPreview] = useState('img/messi.jpg');
+  const [coverPhoto, setCoverPhoto] = useState('img/ronaldo.webp');
+  const [coverPreview, setCoverPreview] = useState('img/ronaldo.webp');
   const [isEditing, setIsEditing] = useState(false);
-  const [posts, setPosts] = useState([]); // Thêm state cho posts
+  const [posts, setPosts] = useState([]);
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (file && file.type.startsWith('image/')) {
       setAvatar(file);
       setAvatarPreview(URL.createObjectURL(file));
+    } else {
+      alert('Please select an image file');
     }
   };
 
   const handleCoverChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (file && file.type.startsWith('image/')) {
       setCoverPhoto(file);
       setCoverPreview(URL.createObjectURL(file));
+    } else {
+      alert('Please select an image file');
     }
   };
 
@@ -37,28 +41,40 @@ function Profile() {
   };
 
   const handleAddPost = (newPost) => {
-    setPosts([newPost, ...posts]); // Thêm bài đăng mới vào đầu danh sách
+    setPosts([newPost, ...posts]);
   };
 
   const getInitial = () => name.charAt(0).toUpperCase();
 
   return (
-    <div className="profile-container">
+    <div className="profile-container" style={{ marginTop: '62px' }}>
       <div className="cover-photo-section">
         {coverPreview ? (
-          <img src={coverPreview} alt="Cover" className="cover-photo" />
+          <img
+            src={coverPreview}
+            alt="Cover"
+            className="cover-photo"
+            onError={(e) => {
+              e.target.src = 'img/default-cover.jpg'; // Ảnh mặc định nếu lỗi
+            }}
+          />
         ) : (
           <div className="cover-placeholder"></div>
         )}
-        <label className="cover-upload-button">
-          <span>Change Cover Photo</span>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleCoverChange}
-            style={{ display: 'none' }}
-          />
-        </label>
+        {isEditing && (
+          <label className="cover-upload-button">
+            {console.log('hello')}
+            <span className="cover-upload-text">
+              Change Cover Photo
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleCoverChange}
+              style={{ display: 'none' }}
+            />
+          </label>
+        )}
       </div>
 
       <div className="profile-header">
@@ -82,7 +98,7 @@ function Profile() {
             </div>
           )}
         </div>
-        <div className="profile-info">
+        <div className="profile-info" style={{ marginTop: '86px' }}>
           <h1 className="profile-name">{name}</h1>
           <p className="profile-bio">{bio}</p>
           <button
@@ -133,7 +149,6 @@ function Profile() {
         </div>
       )}
 
-      {/* Thêm PostForm và PostList */}
       <div className="profile-content">
         <PostForm onAddPost={handleAddPost} />
         <PostList posts={posts} setPosts={setPosts} />

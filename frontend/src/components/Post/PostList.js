@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import './PostList.css';
 
 function PostList({ posts, setPosts }) {
   const handleLike = (postId) => {
@@ -26,32 +27,61 @@ function PostList({ posts, setPosts }) {
                 style={{ width: '40px', height: '40px' }}
               />
               <div className="flex-grow-1">
-                <div className="fw-bold">MaGaming</div>
-                <small className="text-secondary">{new Date(post.createdAt).toLocaleString()}</small>
+                <div className="fw-bold username">MaGaming</div>
+                <small className="text-secondary timestamp">
+                  {new Date(post.createdAt).toLocaleString()}
+                </small>
               </div>
               <button className="btn btn-link text-secondary">⋯</button>
             </div>
-            <p>{post.content}</p>
+            <p className="post-content">{post.content}</p>
             {post.media && (
-              <div className="mb-3">
+              <div className="mb-3" style={{ maxWidth: '400px', margin: '0 auto' }}>
                 {post.media.includes('video') ? (
-                  <video src={post.media} controls className="img-fluid rounded" />
+                  <video
+                    src={post.media}
+                    controls
+                    className="img-fluid rounded"
+                    style={{ width: '100%', height: 'auto', maxHeight: '300px' }}
+                  />
                 ) : (
-                  <img src={post.media} alt="Post Media" className="img-fluid rounded" />
+                  <img
+                    src={post.media}
+                    alt="Post Media"
+                    className="img-fluid rounded"
+                    style={{ width: '100%', height: 'auto', maxHeight: '700px', objectFit: 'cover' }}
+                  />
                 )}
               </div>
             )}
-            <div className="d-flex gap-3 mb-3">
+            <div className="d-flex justify-content-between align-items-center gap-3 mb-3">
               <button
-                className="btn btn-link text-secondary"
+                className="btn btn-link text-secondary action-button flex-grow-1"
                 onClick={() => handleLike(post.id)}
               >
-                👍 Like ({post.likes})
+                <img
+                  src="/img/icons/like.png"
+                  alt="Like"
+                  className="action-icon me-1"
+                />
+                Like ({post.likes})
               </button>
-              <button className="btn btn-link text-secondary">
-                💬 Comment ({post.comments.length})
+              <button className="btn btn-link text-secondary action-button flex-grow-1">
+                <img
+                  src="/img/icons/comment.png"
+                  alt="Comment"
+                  className="action-icon me-1"
+                />
+                Comment ({post.comments.length})
               </button>
-              <button className="btn btn-link text-secondary">📤 Share</button>
+              <button className="btn btn-link text-secondary action-button flex-grow-1">
+                <img
+                  src="/img/icons/share.png"
+                  alt="Share"
+                  className="action-icon me-1"
+                />
+                Share
+              </button>
             </div>
             {/* Comment Section */}
             <div className="mb-3">
@@ -63,7 +93,7 @@ function PostList({ posts, setPosts }) {
                     className="rounded-circle"
                     style={{ width: '30px', height: '30px' }}
                   />
-                  <div className="bg-light p-2 rounded">{comment}</div>
+                  <div className="bg-light p-2 rounded comment-text flex-grow-1">{comment}</div>
                 </div>
               ))}
               <div className="d-flex gap-2">
@@ -75,7 +105,7 @@ function PostList({ posts, setPosts }) {
                 />
                 <input
                   type="text"
-                  className="form-control rounded-pill"
+                  className="form-control rounded-pill comment-input flex-grow-1"
                   placeholder="Write a comment..."
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && e.target.value.trim()) {

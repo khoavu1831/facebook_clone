@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './PostForm.css';
 
 function PostForm({ onAddPost }) {
   const [content, setContent] = useState('');
@@ -19,7 +20,7 @@ function PostForm({ onAddPost }) {
     const newPost = {
       id: Date.now(),
       content,
-      media: mediaPreview, // Lưu URL preview (thực tế sẽ lưu URL từ backend)
+      media: mediaPreview,
       likes: 0,
       comments: [],
       createdAt: new Date().toISOString(),
@@ -42,7 +43,7 @@ function PostForm({ onAddPost }) {
           />
           <input
             type="text"
-            className="form-control rounded-pill"
+            className="form-control rounded-pill post-input"
             placeholder="What's on your mind, Althrun Sun?"
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -50,7 +51,7 @@ function PostForm({ onAddPost }) {
         </div>
         {mediaPreview && (
           <div className="mb-3">
-            {media.type.includes('video') ? (
+            {media?.type.includes('video') ? (
               <video src={mediaPreview} controls className="img-fluid rounded" />
             ) : (
               <img src={mediaPreview} alt="Preview" className="img-fluid rounded" />
@@ -58,19 +59,41 @@ function PostForm({ onAddPost }) {
           </div>
         )}
         <div className="d-flex justify-content-between mb-3">
-          <button className="btn btn-link text-secondary">📹 Live Video</button>
-          <label className="btn btn-link text-secondary">
-            📷 Photo/Video
+          <button className="btn btn-link text-secondary action-button">
+            <img
+              src="/img/icons/post-live.png"
+              alt="Live"
+              className="action-icon me-1"
+            />
+            Live Video
+          </button>
+          <label htmlFor="media-upload" className="btn btn-link text-secondary action-button">
+            <img
+              src="/img/icons/post-picture.png"
+              alt="Photo/Video"
+              className="action-icon me-1"
+            />
+            Photo/Video
             <input
+              id="media-upload"
               type="file"
               accept="image/*,video/*"
               onChange={handleMediaChange}
               style={{ display: 'none' }}
             />
           </label>
-          <button className="btn btn-link text-secondary">😊 Feeling/Activity</button>
+          <button className="btn btn-link text-secondary action-button">
+            <img
+              src="/img/icons/post-feeling.png"
+              alt="Feeling"
+              className="action-icon me-1"
+            />
+            Feeling/Activity
+          </button>
         </div>
-        <button className="btn btn-primary w-100" onClick={handleSubmit}>Post</button>
+        <button className="btn btn-primary w-100 post-button" onClick={handleSubmit}>
+          Post
+        </button>
       </div>
     </div>
   );

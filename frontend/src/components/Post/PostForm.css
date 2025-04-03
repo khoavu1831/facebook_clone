@@ -1,0 +1,39 @@
+/* Import font tròn từ Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&display=swap');
+
+.card {
+  max-width: 600px;
+  margin: 0 auto 20px;
+}
+
+.card-body {
+  padding: 15px;
+  font-family: 'Poppins', sans-serif; /* Áp dụng font tròn */
+}
+
+.post-input {
+  font-family: 'Poppins', sans-serif;
+  font-size: 16px;
+  padding: 10px 15px;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  padding: 5px 10px;
+}
+
+.action-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 5px; /* Khoảng cách giữa icon và text */
+}
+
+.post-button {
+  font-family: 'Poppins', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 8px;
+}

@@ -1,0 +1,27 @@
+/* Định dạng các mục trong sidebar */
+.sidebar-item {
+    padding: 10px 8px; /* Tăng padding để mục to hơn */
+    font-size: 18px; /* Tăng kích thước chữ */
+    border-radius: 8px; /* Bo góc giống Facebook */
+    transition: background-color 0.2s ease; /* Hiệu ứng mượt khi hover */
+}
+
+/* Định dạng icon */
+.action-icon {
+    width: 28px; /* Tăng kích thước icon */
+    height: 28px;
+}
+
+/* Hiệu ứng hover giống Facebook */
+.sidebar-item:hover {
+    background-color: #f2f2f2; /* Nền xám nhạt khi hover */
+    color: #000; /* Giữ màu chữ đen */
+    text-decoration: none; /* Đảm bảo không có gạch dưới */
+}
+
+/* Đảm bảo Link không thêm gạch dưới */
+.sidebar-item:link,
+.sidebar-item:visited,
+.sidebar-item:active {
+    text-decoration: none;
+}

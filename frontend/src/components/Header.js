@@ -52,7 +52,7 @@ function Header() {
           <div className="text-secondary fs-5">
             <Link to="/">
               <img
-                src="/img/notify.png"
+                src="/img/icons/notify.png"
                 alt="Notification Logo"
                 style={{ width: "36px", height: "36px" }}
               />
@@ -63,7 +63,7 @@ function Header() {
           <div className="text-secondary fs-5">
             <Link to="/">
               <img
-                src="/img/messenger.png"
+                src="/img/icons/messenger.png"
                 alt="Messenger Logo"
                 style={{ width: "36px", height: "36px" }}
               />
