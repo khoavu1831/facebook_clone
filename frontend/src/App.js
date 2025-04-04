@@ -7,7 +7,6 @@ import Friends from './pages/Friends/Friends';
 import Auth from './components/Auth/Auth';
 import Admin from './pages/Admin/Admin';
 import AdminAuth from './components/AdminAuth/AdminAuth'; 
-import AdminDashboard from './pages/Admin/AdminDashboard'; 
 
 function App() {
   return (
