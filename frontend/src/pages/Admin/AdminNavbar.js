@@ -11,8 +11,22 @@ const AdminNavbar = () => {
         <Navbar.Toggle aria-controls="admin-nav" />
         <Navbar.Collapse id="admin-nav">
           <Nav className="ms-auto nav-items" style={{fontSize: '1rem'}}>
-            <Nav.Link as={Link} to="/admin/manage-posts" className="nav-item">Quản lý bài viết</Nav.Link>
-            <Nav.Link as={Link} to="/admin/manage-users" className="nav-item">Quản lý người dùng</Nav.Link>
+            <Nav.Link as={Link} to="/admin/manage-posts" className="nav-item">
+            <img
+              src="/img/icons/blog.png"
+              alt="Bai viet"
+              className="action-icon"
+            />
+            <span>Quản lý bài viết</span>
+            </Nav.Link>
+            <Nav.Link as={Link} to="/admin/manage-users" className="nav-item">
+            <img
+              src="/img/icons/user.png"
+              alt="User"
+              className="action-icon"
+            />
+            <span>Quản lý người dùng</span>
+            </Nav.Link>
           </Nav>
         </Navbar.Collapse>
       </Container>
