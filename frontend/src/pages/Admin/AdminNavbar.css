@@ -1,7 +1,7 @@
 .nav-item {
     color: #fff !important;
     transition: background 0.3s;
-    min-width: 160px;
+    min-width: 200px;
     text-align: center;
 }
 
