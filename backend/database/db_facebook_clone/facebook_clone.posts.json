@@ -1,0 +1,23 @@
+[{
+  "_id": {
+    "$oid": "67f28347307ef0be2a9d137d"
+  },
+  "userId": {
+    "$oid": "661133dfb91a23a0b97cc2e2"
+  },
+  "content": "Hôm nay là một ngày tuyệt vời!",
+  "images": [
+    "https://example.com/image1.jpg"
+  ],
+  "videos": [],
+  "likes": [
+    {
+      "$oid": "661133dfb91a23a0b97cc2e3"
+    }
+  ],
+  "comments": [],
+  "sharedFrom": null,
+  "createdAt": {
+    "$date": "2025-04-06T12:00:00.000Z"
+  }
+}]
