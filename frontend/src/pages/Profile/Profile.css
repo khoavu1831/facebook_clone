@@ -18,14 +18,12 @@
     height: 100%;
     object-fit: cover;
     object-position: center;
-    /* Tự động điều chỉnh ảnh bìa để khớp khung */
 }
 
 .cover-placeholder {
     width: 100%;
     height: 100%;
     background: #e9ecef;
-    /* Màu xám nếu không có ảnh bìa */
 }
 
 .cover-upload-button {
@@ -48,11 +46,11 @@
 .cover-upload-text {
     display: flex;
     align-items: center;
-    gap: 5px; /* Khoảng cách giữa biểu tượng và text */
+    gap: 5px;
 }
 
 .upload-icon {
-    width: 20px; /* Kích thước biểu tượng */
+    width: 20px;
     height: 20px;
 }
 
@@ -86,7 +84,6 @@
     border-radius: 50%;
     border: 4px solid #fff;
     background: #ccd0d5;
-    /* Background xám nếu không có avatar */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -116,12 +113,10 @@
     font-size: 28px;
     margin: 0;
     color: #1c2526;
-    /* Màu mặc định */
 }
 
 .profile-name.light-text {
     color: #fff;
-    /* Màu trắng nếu ảnh bìa tối */
 }
 
 .profile-bio {
@@ -199,4 +194,20 @@
 
 .save-button:hover {
     background: #166fe5;
+}
+
+/* New styles for buttons row */
+.form-buttons {
+    display: flex;
+    gap: 10px; /* Khoảng cách giữa các nút */
+    justify-content: flex-end; /* Đẩy các nút sang bên phải */
+}
+
+.cancel-button {
+    background: #e4e6eb; /* Màu nền khác để phân biệt với Save */
+    color: #050505;
+}
+
+.cancel-button:hover {
+    background: #d8dade;
 }

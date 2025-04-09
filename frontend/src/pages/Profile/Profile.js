@@ -1,42 +1,42 @@
-import React, { useState } from 'react';
-import './Profile.css';
-import PostForm from '../../components/Post/PostForm';
-import PostList from '../../components/Post/PostList';
+import React, { useState } from "react";
+import "./Profile.css";
+import PostForm from "../../components/Post/PostForm";
+import PostList from "../../components/Post/PostList";
 
 function Profile() {
-  const [name, setName] = useState('Messi Kaiwu');
-  const [email, setEmail] = useState('iamkaiwu@vv.com');
-  const [bio, setBio] = useState('Siuuuuuuuuuuuuu!');
-  const [avatar, setAvatar] = useState('img/messi.jpg');
-  const [avatarPreview, setAvatarPreview] = useState('img/messi.jpg');
-  const [coverPhoto, setCoverPhoto] = useState('img/ronaldo.webp');
-  const [coverPreview, setCoverPreview] = useState('img/ronaldo.webp');
+  const [name, setName] = useState("Messi Kaiwu");
+  const [email, setEmail] = useState("iamkaiwu@vv.com");
+  const [bio, setBio] = useState("Siuuuuuuuuuuuuu!");
+  const [avatar, setAvatar] = useState("img/messi.jpg");
+  const [avatarPreview, setAvatarPreview] = useState("img/messi.jpg");
+  const [coverPhoto, setCoverPhoto] = useState("img/ronaldo.webp");
+  const [coverPreview, setCoverPreview] = useState("img/ronaldo.webp");
   const [isEditing, setIsEditing] = useState(false);
   const [posts, setPosts] = useState([]);
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
-    if (file && file.type.startsWith('image/')) {
+    if (file && file.type.startsWith("image/")) {
       setAvatar(file);
       setAvatarPreview(URL.createObjectURL(file));
     } else {
-      alert('Please select an image file');
+      alert("Please select an image file");
     }
   };
 
   const handleCoverChange = (e) => {
     const file = e.target.files[0];
-    if (file && file.type.startsWith('image/')) {
+    if (file && file.type.startsWith("image/")) {
       setCoverPhoto(file);
       setCoverPreview(URL.createObjectURL(file));
     } else {
-      alert('Please select an image file');
+      alert("Please select an image file");
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Profile updated:', { name, email, bio, avatar, coverPhoto });
+    console.log("Profile updated:", { name, email, bio, avatar, coverPhoto });
     setIsEditing(false);
   };
 
@@ -47,7 +47,7 @@ function Profile() {
   const getInitial = () => name.charAt(0).toUpperCase();
 
   return (
-    <div className="profile-container" style={{ marginTop: '62px' }}>
+    <div className="profile-container" style={{ marginTop: "62px" }}>
       <div className="cover-photo-section">
         {coverPreview ? (
           <img
@@ -55,7 +55,7 @@ function Profile() {
             alt="Cover"
             className="cover-photo"
             onError={(e) => {
-              e.target.src = 'img/default-cover.jpg'; // Ảnh mặc định nếu lỗi
+              e.target.src = "img/default-cover.jpg";
             }}
           />
         ) : (
@@ -63,15 +63,12 @@ function Profile() {
         )}
         {isEditing && (
           <label className="cover-upload-button">
-            {console.log('hello')}
-            <span className="cover-upload-text">
-              Change Cover Photo
-            </span>
+            <span className="cover-upload-text">Change Cover Photo</span>
             <input
               type="file"
               accept="image/*"
               onChange={handleCoverChange}
-              style={{ display: 'none' }}
+              style={{ display: "none" }}
             />
           </label>
         )}
@@ -92,21 +89,23 @@ function Profile() {
                   type="file"
                   accept="image/*"
                   onChange={handleAvatarChange}
-                  style={{ display: 'none' }}
+                  style={{ display: "none" }}
                 />
               </label>
             </div>
           )}
         </div>
-        <div className="profile-info" style={{ marginTop: '86px' }}>
+        <div className="profile-info" style={{ marginTop: "86px" }}>
           <h1 className="profile-name">{name}</h1>
           <p className="profile-bio">{bio}</p>
-          <button
-            className="edit-profile-button"
-            onClick={() => setIsEditing(!isEditing)}
-          >
-            {isEditing ? 'Cancel' : 'Edit Profile'}
-          </button>
+          {!isEditing && (
+            <button
+              className="edit-profile-button"
+              onClick={() => setIsEditing(true)}
+            >
+              Edit Profile
+            </button>
+          )}
         </div>
       </div>
 
@@ -115,7 +114,9 @@ function Profile() {
           <h3 className="form-title">Update Profile</h3>
           <form onSubmit={handleSubmit} className="profile-form">
             <div className="form-group">
-              <label htmlFor="name" className="form-label">Name</label>
+              <label htmlFor="name" className="form-label">
+                Name
+              </label>
               <input
                 type="text"
                 id="name"
@@ -125,7 +126,9 @@ function Profile() {
               />
             </div>
             <div className="form-group">
-              <label htmlFor="email" className="form-label">Email</label>
+              <label htmlFor="email" className="form-label">
+                Email
+              </label>
               <input
                 type="email"
                 id="email"
@@ -135,7 +138,9 @@ function Profile() {
               />
             </div>
             <div className="form-group">
-              <label htmlFor="bio" className="form-label">Bio</label>
+              <label htmlFor="bio" className="form-label">
+                Bio
+              </label>
               <textarea
                 id="bio"
                 value={bio}
@@ -144,7 +149,18 @@ function Profile() {
                 rows="3"
               />
             </div>
-            <button type="submit" className="save-button">Save Changes</button>
+            <div className="form-buttons">
+              <button type="submit" className="save-button">
+                Save Changes
+              </button>
+              <button
+                type="button"
+                className="edit-profile-button cancel-button"
+                onClick={() => setIsEditing(false)}
+              >
+                Cancel
+              </button>
+            </div>
           </form>
         </div>
       )}
