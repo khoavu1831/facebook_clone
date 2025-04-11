@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../../config/api';
 import './PostForm.css';
 
@@ -7,6 +7,32 @@ function PostForm({ onAddPost }) {
   const [media, setMedia] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
+  const currentUser = JSON.parse(localStorage.getItem('userData'));
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        if (currentUser?.id) {
+          const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${currentUser.id}`);
+          if (response.ok) {
+            const data = await response.json();
+            setUserProfile(data);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, [currentUser]);
+
+  const getFullImageUrl = (path) => {
+    if (!path) return '/img/default-avatar.jpg';
+    if (path.startsWith('http')) return path;
+    return `${API_ENDPOINTS.BASE_URL}${path}`;
+  };
 
   const handleMediaChange = (e) => {
     const file = e.target.files[0];
@@ -24,7 +50,7 @@ function PostForm({ onAddPost }) {
     try {
       const formData = new FormData();
       formData.append('content', content);
-      formData.append('userId', JSON.parse(localStorage.getItem('userData')).id);
+      formData.append('userId', currentUser.id);
       
       if (media) {
         if (media.type.includes('image')) {
@@ -47,6 +73,29 @@ function PostForm({ onAddPost }) {
       }
 
       const newPost = await response.json();
+      
+      // Add user information to the new post if it's missing
+      if (!newPost.user) {
+        newPost.user = {
+          id: currentUser.id,
+          firstName: currentUser.firstName,
+          lastName: currentUser.lastName,
+          avatar: userProfile?.avatar
+        };
+      }
+
+      // Add full URLs for media
+      if (newPost.images) {
+        newPost.images = newPost.images.map(image => 
+          image.startsWith('http') ? image : `${API_ENDPOINTS.BASE_URL}${image}`
+        );
+      }
+      if (newPost.videos) {
+        newPost.videos = newPost.videos.map(video => 
+          video.startsWith('http') ? video : `${API_ENDPOINTS.BASE_URL}${video}`
+        );
+      }
+      
       onAddPost(newPost);
       
       // Reset form
@@ -66,10 +115,10 @@ function PostForm({ onAddPost }) {
       <div className="card-body">
         <div className="d-flex align-items-center gap-2 mb-3">
           <img
-            src={JSON.parse(localStorage.getItem('userData'))?.avatar || "/img/logo.png"}
+            src={getFullImageUrl(userProfile?.avatar)}
             alt="User"
             className="rounded-circle"
-            style={{ width: '40px', height: '40px' }}
+            style={{ width: '40px', height: '40px', objectFit: 'cover' }}
           />
           <input
             type="text"

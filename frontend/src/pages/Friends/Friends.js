@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../../config/api';
 import './Friends.css';
 
+const getFullImageUrl = (path) => {
+  if (!path) return 'https://via.placeholder.com/150';
+  if (path.startsWith('http')) return path;
+  return `${API_ENDPOINTS.BASE_URL}${path}`;
+};
+
 function Friends() {
   const [friends, setFriends] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -154,7 +160,7 @@ function Friends() {
                 <div className="card">
                   <div className="card-image-container">
                     <img
-                      src={item.user?.avatar || item.avatar || 'https://via.placeholder.com/150'}
+                      src={getFullImageUrl(item.user?.avatar || item.avatar)}
                       alt={`${item.user?.firstName || item.firstName} ${item.user?.lastName || item.lastName}`}
                       className="card-img-top"
                     />
@@ -163,38 +169,40 @@ function Friends() {
                     <h5 className="card-title">
                       {item.user ? `${item.user.firstName} ${item.user.lastName}` : `${item.firstName} ${item.lastName}`}
                     </h5>
-                    {activeTab === 'requests' && (
-                      <div className="d-flex gap-2">
+                    <div className="button-group">
+                      {activeTab === 'requests' && (
+                        <>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleFriendAction(item.requestId, 'accept')}
+                          >
+                            Chấp nhận
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleFriendAction(item.requestId, 'reject')}
+                          >
+                            Từ chối
+                          </button>
+                        </>
+                      )}
+                      {activeTab === 'friends' && (
                         <button
-                          className="btn btn-primary w-100"
-                          onClick={() => handleFriendAction(item.requestId, 'accept')}
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleFriendAction(item.id, 'unfriend')}
                         >
-                          Xác nhận
+                          Hủy kết bạn
                         </button>
-                        <button 
-                          className="btn btn-secondary w-100"
-                          onClick={() => handleFriendAction(item.requestId, 'reject')}
+                      )}
+                      {activeTab === 'suggestions' && (
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => handleFriendAction(item.id, 'add')}
                         >
-                          Xóa
+                          Kết bạn
                         </button>
-                      </div>
-                    )}
-                    {activeTab === 'friends' && (
-                      <button
-                        className="btn btn-danger w-100"
-                        onClick={() => handleFriendAction(item.id, 'unfriend')}
-                      >
-                        Hủy kết bạn
-                      </button>
-                    )}
-                    {activeTab === 'suggestions' && (
-                      <button 
-                        className="btn btn-primary w-100"
-                        onClick={() => handleFriendAction(item.id, 'add')}
-                      >
-                        Thêm bạn
-                      </button>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

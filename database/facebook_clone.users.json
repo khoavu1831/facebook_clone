@@ -1,36 +1,36 @@
 [{
   "_id": {
-    "$oid": "67f8c4a074895a2f413c12b1"
-  },
-  "email": "test@example.com",
-  "password": "123456",
-  "firstName": "John",
-  "lastName": "Doe",
-  "day": "1",
-  "month": "1",
-  "year": "1990",
-  "gender": "male",
-  "role": "USER",
-  "createdAt": {
-    "$date": "2025-04-11T07:28:32.684Z"
-  },
-  "_class": "com.example.facebook_clone.model.User"
-},
-{
-  "_id": {
     "$oid": "67f8c5c374895a2f413c12b2"
   },
+  "firstName": "Minh",
+  "lastName": " Tri",
   "email": "tri@gmail.com",
   "password": "123456",
-  "firstName": "Minh ",
-  "lastName": "Tri",
   "day": "7",
   "month": "Feb",
   "year": "2004",
   "gender": "Male",
+  "bio": "",
+  "avatar": "/uploads/b0be41af-beb9-4b1a-aad4-bf2bb84c48ad.png",
+  "coverPhoto": "/uploads/e01060cc-5ce7-48cf-a140-f80461229397.png",
   "role": "USER",
-  "createdAt": {
-    "$date": "2025-04-11T07:33:23.433Z"
+  "_class": "com.example.facebook_clone.model.User"
+},
+{
+  "_id": {
+    "$oid": "67f92d516b98873714dca916"
   },
+  "firstName": "Duong",
+  "lastName": " Minh",
+  "email": "tri1@gmail.com",
+  "password": "123456",
+  "day": "13",
+  "month": "Mar",
+  "year": "1993",
+  "gender": "Male",
+  "bio": "",
+  "avatar": "/uploads/f4b9faca-3812-405f-a082-82ef5029ab7f.jpg",
+  "coverPhoto": "/uploads/37b9b9d3-b46c-44d3-b5ac-680ce594430f.jpg",
+  "role": "USER",
   "_class": "com.example.facebook_clone.model.User"
 }]

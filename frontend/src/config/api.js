@@ -6,5 +6,6 @@ export const API_ENDPOINTS = {
     REGISTER: `${BASE_URL}/api/auth/register`,
     ADMIN_LOGIN: `${BASE_URL}/api/auth/admin/login`,
     POSTS: `${BASE_URL}/api/posts`,
-    FRIENDS: `${BASE_URL}/api/friends`
+    FRIENDS: `${BASE_URL}/api/friends`,
+    PROFILE: `${BASE_URL}/api/profile`
 };

@@ -1,0 +1,49 @@
+.shared-post {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.shared-comment {
+    margin-bottom: 10px;
+    font-size: 1rem;
+    color: #212529;
+}
+
+.original-post-content {
+    color: #495057;
+}
+
+.media-grid {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.media-grid img,
+.media-grid video {
+    width: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.shared-post .rounded-circle {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+}
+
+.shared-post-preview {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.shared-post .post-header {
+    padding: 10px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.shared-post .post-content {
+    padding: 10px;
+}

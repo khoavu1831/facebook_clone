@@ -1,1 +1,30 @@
-[]
+[{
+  "_id": {
+    "$oid": "67f93c19be3d8c0e4d69c528"
+  },
+  "userId": "67f92d516b98873714dca916",
+  "friendId": "67f8c5c374895a2f413c12b2",
+  "status": "ACCEPTED",
+  "createdAt": {
+    "$date": "2025-04-11T15:58:17.992Z"
+  },
+  "updatedAt": {
+    "$date": "2025-04-11T15:58:27.359Z"
+  },
+  "_class": "com.example.facebook_clone.model.Friend"
+},
+{
+  "_id": {
+    "$oid": "67f93c23be3d8c0e4d69c529"
+  },
+  "userId": "67f8c5c374895a2f413c12b2",
+  "friendId": "67f92d516b98873714dca916",
+  "status": "ACCEPTED",
+  "createdAt": {
+    "$date": "2025-04-11T15:58:27.360Z"
+  },
+  "updatedAt": {
+    "$date": "2025-04-11T15:58:27.360Z"
+  },
+  "_class": "com.example.facebook_clone.model.Friend"
+}]

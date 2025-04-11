@@ -1,65 +1,159 @@
-import React, { useState } from "react";
-import "./Profile.css";
+import React, { useState, useEffect } from 'react';
+import './Profile.css'; // Sử dụng CSS thông thường thay vì CSS module
+import { useUser } from '../../contexts/UserContext';
+import { API_ENDPOINTS } from '../../config/api';
 import PostForm from "../../components/Post/PostForm";
 import PostList from "../../components/Post/PostList";
 
 function Profile() {
-  const [name, setName] = useState("Messi Kaiwu");
-  const [email, setEmail] = useState("iamkaiwu@vv.com");
-  const [bio, setBio] = useState("Siuuuuuuuuuuuuu!");
-  const [avatar, setAvatar] = useState("img/messi.jpg");
-  const [avatarPreview, setAvatarPreview] = useState("img/messi.jpg");
-  const [coverPhoto, setCoverPhoto] = useState("img/ronaldo.webp");
-  const [coverPreview, setCoverPreview] = useState("img/ronaldo.webp");
-  const [isEditing, setIsEditing] = useState(false);
   const [posts, setPosts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [bio, setBio] = useState('');
+  const [gender, setGender] = useState('');
+  const [avatar, setAvatar] = useState(null);
+  const [coverPhoto, setCoverPhoto] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
+  const [coverPreview, setCoverPreview] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  
+  const currentUser = JSON.parse(localStorage.getItem('userData'));
 
-  const handleAvatarChange = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type.startsWith("image/")) {
-      setAvatar(file);
-      setAvatarPreview(URL.createObjectURL(file));
-    } else {
-      alert("Please select an image file");
+  useEffect(() => {
+    const fetchProfileAndPosts = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch profile data
+        const profileResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${currentUser.id}`);
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json();
+          setName(`${profileData.firstName} ${profileData.lastName}`);
+          setEmail(profileData.email);
+          setBio(profileData.bio || '');
+          setGender(profileData.gender || '');
+          setAvatarPreview(profileData.avatar ? `${API_ENDPOINTS.BASE_URL}${profileData.avatar}` : '/img/default-avatar.jpg');
+          setCoverPreview(profileData.coverPhoto ? `${API_ENDPOINTS.BASE_URL}${profileData.coverPhoto}` : '/img/default-cover.jpg');
+        }
+
+        // Fetch user's posts
+        const postsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts?userId=${currentUser.id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+          }
+        });
+        
+        if (postsResponse.ok) {
+          const postsData = await postsResponse.json();
+          setPosts(postsData);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (currentUser?.id) {
+      fetchProfileAndPosts();
     }
-  };
-
-  const handleCoverChange = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type.startsWith("image/")) {
-      setCoverPhoto(file);
-      setCoverPreview(URL.createObjectURL(file));
-    } else {
-      alert("Please select an image file");
-    }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Profile updated:", { name, email, bio, avatar, coverPhoto });
-    setIsEditing(false);
-  };
+  }, [currentUser?.id]);
 
   const handleAddPost = (newPost) => {
-    setPosts([newPost, ...posts]);
+    setPosts(prevPosts => [newPost, ...prevPosts]);
   };
 
-  const getInitial = () => name.charAt(0).toUpperCase();
+  const handleCoverChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setCoverPhoto(file);
+      setCoverPreview(URL.createObjectURL(file));
+      
+      const formData = new FormData();
+      formData.append('userId', currentUser.id);
+      formData.append('name', name);
+      formData.append('email', email);
+      formData.append('bio', bio);
+      formData.append('gender', gender);
+      formData.append('coverPhoto', file);
+
+      try {
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/update`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update cover photo');
+        }
+
+        const updatedProfile = await response.json();
+        setCoverPreview(`${API_ENDPOINTS.BASE_URL}${updatedProfile.coverPhoto}`);
+      } catch (error) {
+        console.error('Error updating cover photo:', error);
+        // Revert preview if update fails
+        setCoverPreview(coverPreview);
+      }
+    }
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAvatar(file);
+      setAvatarPreview(URL.createObjectURL(file));
+      
+      const formData = new FormData();
+      formData.append('userId', currentUser.id);
+      formData.append('name', name);
+      formData.append('email', email);
+      formData.append('bio', bio);
+      formData.append('gender', gender);
+      formData.append('avatar', file);
+
+      try {
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/update`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update avatar');
+        }
+
+        const updatedProfile = await response.json();
+        setAvatarPreview(`${API_ENDPOINTS.BASE_URL}${updatedProfile.avatar}`);
+      } catch (error) {
+        console.error('Error updating avatar:', error);
+        // Revert preview if update fails
+        setAvatarPreview(avatarPreview);
+      }
+    }
+  };
+
+  if (isLoading) {
+    return <div className="text-center mt-5">Loading...</div>;
+  }
 
   return (
     <div className="profile-container" style={{ marginTop: "62px" }}>
       <div className="cover-photo-section">
-        {coverPreview ? (
+        {coverPreview && (
           <img
             src={coverPreview}
             alt="Cover"
             className="cover-photo"
             onError={(e) => {
-              e.target.src = "img/default-cover.jpg";
+              e.target.src = "/img/default-cover.jpg";
             }}
           />
-        ) : (
-          <div className="cover-placeholder"></div>
         )}
         {isEditing && (
           <label className="cover-upload-button">
@@ -76,10 +170,15 @@ function Profile() {
 
       <div className="profile-header">
         <div className="avatar-section">
-          {avatarPreview ? (
-            <img src={avatarPreview} alt="Avatar" className="avatar" />
-          ) : (
-            <div className="avatar-placeholder">{getInitial()}</div>
+          {avatarPreview && (
+            <img 
+              src={avatarPreview} 
+              alt="Avatar" 
+              className="avatar"
+              onError={(e) => {
+                e.target.src = "/img/default-avatar.jpg";
+              }}
+            />
           )}
           {isEditing && (
             <div className="avatar-upload-wrapper">
@@ -109,65 +208,14 @@ function Profile() {
         </div>
       </div>
 
-      {isEditing && (
-        <div className="profile-form-section">
-          <h3 className="form-title">Update Profile</h3>
-          <form onSubmit={handleSubmit} className="profile-form">
-            <div className="form-group">
-              <label htmlFor="name" className="form-label">
-                Name
-              </label>
-              <input
-                type="text"
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="form-input"
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="email" className="form-label">
-                Email
-              </label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="form-input"
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="bio" className="form-label">
-                Bio
-              </label>
-              <textarea
-                id="bio"
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                className="form-textarea"
-                rows="3"
-              />
-            </div>
-            <div className="form-buttons">
-              <button type="submit" className="save-button">
-                Save Changes
-              </button>
-              <button
-                type="button"
-                className="edit-profile-button cancel-button"
-                onClick={() => setIsEditing(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
+      {/* Profile content section */}
       <div className="profile-content">
         <PostForm onAddPost={handleAddPost} />
-        <PostList posts={posts} setPosts={setPosts} />
+        {posts.length > 0 ? (
+          <PostList posts={posts} setPosts={setPosts} />
+        ) : (
+          <p className="text-center mt-3">No posts yet</p>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,6 @@
+/* Đảm bảo file này tồn tại trong cùng thư mục với Profile.js */
 .profile-container {
-    max-width: 900px;
-    margin: 0 auto;
-    font-family: 'Helvetica', sans-serif;
+  /* your styles */
 }
 
 /* Cover Photo */

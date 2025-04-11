@@ -1,43 +1,55 @@
 [{
   "_id": {
-    "$oid": "67f28347307ef0be2a9d137d"
+    "$oid": "67f954c93021374299a355dc"
   },
-  "userId": "661133dfb91a23a0b97cc2e2",
-  "content": "Hôm nay là một ngày tuyệt vời!",
+  "content": "wào",
+  "userId": "67f8c5c374895a2f413c12b2",
+  "createdAt": {
+    "$date": "2025-04-11T17:43:37.016Z"
+  },
   "images": [
-    "https://example.com/image1.jpg"
+    "/uploads/2b5aa9df-0857-4384-b301-cf6cb43d1a97.jpg"
   ],
   "videos": [],
   "likes": [
-    "661133dfb91a23a0b97cc2e3"
+    "67f92d516b98873714dca916"
   ],
   "comments": [
     {
-      "userId": "67f8c5c374895a2f413c12b2",
-      "content": "uầy",
+      "userId": "67f92d516b98873714dca916",
+      "content": "ghê",
       "createdAt": {
-        "$date": "2025-04-11T08:03:27.443Z"
+        "$date": "2025-04-11T17:43:49.528Z"
       }
     }
   ],
-  "createdAt": {
-    "$date": "2025-04-06T12:00:00.000Z"
-  },
+  "isShared": false,
   "_class": "com.example.facebook_clone.model.Post"
 },
 {
   "_id": {
-    "$oid": "67f8ca69b57fb715706163aa"
+    "$oid": "67f954e53021374299a355dd"
   },
-  "userId": "67f8c5c374895a2f413c12b2",
-  "content": "hi",
-  "images": [
-    "/uploads/fa418f4f-5cfa-4708-a64d-c617ae67c8b1-tải xuống.png"
-  ],
-  "likes": [],
-  "comments": [],
+  "content": ":3",
+  "userId": "67f92d516b98873714dca916",
   "createdAt": {
-    "$date": "2025-04-11T07:53:13.593Z"
+    "$date": "2025-04-11T17:44:05.793Z"
   },
+  "images": [],
+  "videos": [],
+  "likes": [
+    "67f92d516b98873714dca916"
+  ],
+  "comments": [
+    {
+      "userId": "67f92d516b98873714dca916",
+      "content": "ghê chưa",
+      "createdAt": {
+        "$date": "2025-04-11T17:44:17.940Z"
+      }
+    }
+  ],
+  "isShared": true,
+  "originalPostId": "67f954c93021374299a355dc",
   "_class": "com.example.facebook_clone.model.Post"
 }]

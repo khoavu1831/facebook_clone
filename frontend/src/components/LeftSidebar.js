@@ -1,8 +1,37 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useUser } from "../contexts/UserContext";
+import { API_ENDPOINTS } from "../config/api";
 import './LeftSidebar.css';
 
 function LeftSidebar() {
+  const { currentUser } = useUser();
+  const [userProfile, setUserProfile] = useState(null);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        if (currentUser?.id) {
+          const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${currentUser.id}`);
+          if (response.ok) {
+            const data = await response.json();
+            setUserProfile(data);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, [currentUser]);
+
+  const getFullImageUrl = (path) => {
+    if (!path) return '/img/default-avatar.jpg';
+    if (path.startsWith('http')) return path;
+    return `${API_ENDPOINTS.BASE_URL}${path}`;
+  };
+
   return (
     <div
       className="col-3 p-3 position-fixed"
@@ -12,12 +41,14 @@ function LeftSidebar() {
         <Link to="/profile" style={{ textDecoration: "none", color: "black" }}>
           <div className="d-flex align-items-center flex-row">
             <img
-              src="/img/luu.jpg"
+              src={getFullImageUrl(userProfile?.avatar)}
               alt="User"
               className="rounded-circle"
               style={{ width: "30px", height: "30px" }}
             />
-            <span style={{ marginLeft: '6px', fontSize: '18px' }}>MaGaming</span>
+            <span style={{ marginLeft: '6px', fontSize: '18px' }}>
+              {userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : 'Loading...'}
+            </span>
           </div>
         </Link>
       </div>

@@ -1,7 +1,5 @@
 package com.example.facebook_clone.model;
 
-import java.util.Date;
-
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -9,33 +7,47 @@ import org.springframework.data.mongodb.core.mapping.Document;
 public class User {
     @Id
     private String id;
-    private String username;
-    private String email;
-    private String password;
     private String firstName;
     private String lastName;
+    private String email;
+    private String password;
     private String day;
     private String month;
     private String year;
     private String gender;
-    private String role = "USER";
-    private Date createdAt = new Date();
-
-    // Getters and Setters
+    private String bio;
+    private String avatar;
+    private String coverPhoto;
+    private String role = "USER"; // Default role
+    
+    // Thêm getter và setter cho role
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
+    
+    // Các getter và setter hiện có
+    public String getBio() { return bio; }
+    public void setBio(String bio) { this.bio = bio; }
+    
+    public String getAvatar() { return avatar; }
+    public void setAvatar(String avatar) { this.avatar = avatar; }
+    
+    public String getCoverPhoto() { return coverPhoto; }
+    public void setCoverPhoto(String coverPhoto) { this.coverPhoto = coverPhoto; }
+    
     public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-    
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
+    public void setId(String id) { this.id = id; }  
     
     public String getFirstName() { return firstName; }
     public void setFirstName(String firstName) { this.firstName = firstName; }
     
     public String getLastName() { return lastName; }
     public void setLastName(String lastName) { this.lastName = lastName; }
+    
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
     
     public String getDay() { return day; }
     public void setDay(String day) { this.day = day; }
@@ -48,13 +60,4 @@ public class User {
     
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
-    
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
-    
-    public Date getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
-
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
 }
