@@ -24,8 +24,9 @@
 
 .post-content {
   font-family: 'Poppins', sans-serif;
-  font-size: 15px;
-  margin-bottom: 10px;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  white-space: pre-wrap;
 }
 
 .action-button {
@@ -45,12 +46,30 @@
 }
 
 .comment-text {
-  font-family: 'Poppins', sans-serif;
-  font-size: 14px;
+  background-color: #f0f2f5;
+  border-radius: 18px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
 }
 
 .comment-input {
   font-family: 'Poppins', sans-serif;
   font-size: 14px;
   padding: 8px 15px;
+}
+
+.comments-section {
+  border-top: 1px solid #dee2e6;
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+.btn-link {
+  text-decoration: none;
+  padding: 0;
+}
+
+.btn-link:hover {
+  text-decoration: none;
+  opacity: 0.8;
 }
