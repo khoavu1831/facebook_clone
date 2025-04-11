@@ -50,7 +50,8 @@ public class PostController {
         if (images != null && images.length > 0) {
             List<String> imageUrls = new ArrayList<>();
             for (MultipartFile image : images) {
-                String fileName = fileStorageService.storeFile(image);
+                String fileName = image.getOriginalFilename();
+                fileStorageService.storeFile(image);
                 imageUrls.add("/uploads/" + fileName);
             }
             post.setImages(imageUrls);
@@ -60,7 +61,8 @@ public class PostController {
         if (videos != null && videos.length > 0) {
             List<String> videoUrls = new ArrayList<>();
             for (MultipartFile video : videos) {
-                String fileName = fileStorageService.storeFile(video);
+                String fileName = video.getOriginalFilename();
+                fileStorageService.storeFile(video);
                 videoUrls.add("/uploads/" + fileName);
             }
             post.setVideos(videoUrls);

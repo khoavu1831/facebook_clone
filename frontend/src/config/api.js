@@ -1,9 +1,9 @@
-export const API_BASE_URL = 'http://localhost:8080/api';
+const BASE_URL = 'http://localhost:8080';
 
 export const API_ENDPOINTS = {
-  LOGIN: `${API_BASE_URL}/auth/login`,
-  REGISTER: `${API_BASE_URL}/auth/register`,
-  ADMIN_LOGIN: `${API_BASE_URL}/auth/admin/login`,
-  POSTS: `${API_BASE_URL}/posts`,
-  BASE_URL: API_BASE_URL
+    BASE_URL,
+    LOGIN: `${BASE_URL}/api/auth/login`,
+    REGISTER: `${BASE_URL}/api/auth/register`,
+    ADMIN_LOGIN: `${BASE_URL}/api/auth/admin/login`,
+    POSTS: `${BASE_URL}/api/posts`
 };

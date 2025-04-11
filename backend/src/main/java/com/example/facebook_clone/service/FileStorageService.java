@@ -1,14 +1,14 @@
 package com.example.facebook_clone.service;
 
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.util.StringUtils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.UUID;
+
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class FileStorageService {
@@ -26,9 +26,7 @@ public class FileStorageService {
     }
 
     public String storeFile(MultipartFile file) {
-        String fileName = StringUtils.cleanPath(
-            UUID.randomUUID().toString() + "-" + file.getOriginalFilename()
-        );
+        String fileName = StringUtils.cleanPath(file.getOriginalFilename());
 
         try {
             Path targetLocation = this.fileStorageLocation.resolve(fileName);

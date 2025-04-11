@@ -91,7 +91,7 @@ function PostList({ posts, setPosts }) {
                 {post.images.map((image, index) => (
                   <img 
                     key={index}
-                    src={`${API_ENDPOINTS.BASE_URL}${image}`}
+                    src={`${API_ENDPOINTS.BASE_URL}/uploads/${image.split('/').pop()}`}
                     alt="Post content" 
                     className="img-fluid rounded mb-2"
                   />
@@ -104,7 +104,7 @@ function PostList({ posts, setPosts }) {
                 {post.videos.map((video, index) => (
                   <video 
                     key={index}
-                    src={`${API_ENDPOINTS.BASE_URL}${video}`}
+                    src={`${API_ENDPOINTS.BASE_URL}/uploads/${video.split('/').pop()}`}
                     controls
                     className="img-fluid rounded mb-2"
                   />
