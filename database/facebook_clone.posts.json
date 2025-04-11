@@ -1,0 +1,43 @@
+[{
+  "_id": {
+    "$oid": "67f28347307ef0be2a9d137d"
+  },
+  "userId": "661133dfb91a23a0b97cc2e2",
+  "content": "Hôm nay là một ngày tuyệt vời!",
+  "images": [
+    "https://example.com/image1.jpg"
+  ],
+  "videos": [],
+  "likes": [
+    "661133dfb91a23a0b97cc2e3"
+  ],
+  "comments": [
+    {
+      "userId": "67f8c5c374895a2f413c12b2",
+      "content": "uầy",
+      "createdAt": {
+        "$date": "2025-04-11T08:03:27.443Z"
+      }
+    }
+  ],
+  "createdAt": {
+    "$date": "2025-04-06T12:00:00.000Z"
+  },
+  "_class": "com.example.facebook_clone.model.Post"
+},
+{
+  "_id": {
+    "$oid": "67f8ca69b57fb715706163aa"
+  },
+  "userId": "67f8c5c374895a2f413c12b2",
+  "content": "hi",
+  "images": [
+    "/uploads/fa418f4f-5cfa-4708-a64d-c617ae67c8b1-tải xuống.png"
+  ],
+  "likes": [],
+  "comments": [],
+  "createdAt": {
+    "$date": "2025-04-11T07:53:13.593Z"
+  },
+  "_class": "com.example.facebook_clone.model.Post"
+}]
