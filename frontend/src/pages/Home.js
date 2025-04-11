@@ -1,40 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useUser } from '../contexts/UserContext';
 import PostForm from '../components/Post/PostForm';
 import PostList from '../components/Post/PostList';
 import LeftSidebar from '../components/LeftSidebar';
 import RightSidebar from '../components/RightSidebar';
+import { API_ENDPOINTS } from '../config/api';
 
 function Home() {
-  const initialPosts = [
-    {
-      id: 1,
-      content: "Hi guys! My name is MaGaming, a Master's student of CS in Data Science at UBC. In the ICICS/CS building, I've spent countless days and nights acquiring advanced CS and machine learning knowledge. This place has witnessed the birth of numerous cutting-edge projects I've crafted, making it incredibly meaningful to me.",
-      likes: 0,
-      comments: [],
-      createdAt: "2023-04-24T18:35:04",
-    },
-    {
-      id: 2,
-      content: "Just finished a great weekend camping with friends! The weather was perfect, and we had an amazing time by the lake. 🏕️",
-      likes: 0,
-      comments: [],
-      createdAt: "2023-04-25T09:15:00",
-    },
-  ];
+  const { currentUser } = useUser();
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [posts, setPosts] = useState(initialPosts);
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const response = await fetch(`${API_ENDPOINTS.POSTS}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setPosts(data);
+        }
+      } catch (error) {
+        console.error('Error fetching posts:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (currentUser) {
+      fetchPosts();
+    }
+  }, [currentUser]);
 
   const addPost = (newPost) => {
     setPosts([newPost, ...posts]);
   };
+
+  if (loading) {
+    return <div className="text-center mt-5">Loading...</div>;
+  }
 
   return (
     <div className="container-fluid">
       <div className="row" style={{ paddingTop: '60px' }}>
         <LeftSidebar />
         <div className="col-6 offset-3">
-          <PostForm onAddPost={addPost} />
-          <PostList posts={posts} setPosts={setPosts} />
+          {currentUser && (
+            <>
+              <PostForm onAddPost={addPost} user={currentUser} />
+              <PostList posts={posts} setPosts={setPosts} currentUser={currentUser} />
+            </>
+          )}
         </div>
         <RightSidebar />
       </div>

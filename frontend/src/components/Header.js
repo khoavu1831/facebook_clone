@@ -1,11 +1,12 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { logout } from "../utils/auth";
 
 function Header() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    console.log("User logged out");
+    logout();
     navigate("/login");
   };
 

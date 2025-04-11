@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { API_ENDPOINTS } from '../../config/api';
 import './Auth.css';
+import { useUser } from '../../contexts/UserContext';
 
 function Auth({ isLogin = true }) {
   const [email, setEmail] = useState('');
@@ -11,35 +13,85 @@ function Auth({ isLogin = true }) {
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
   const [gender, setGender] = useState('');
+  const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { setCurrentUser } = useUser();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isLogin) {
-      console.log('Login', { email, password });
-    } else {
-      console.log('Register', { firstName, surname, email, password, day, month, year, gender });
+    setError('');
+
+    try {
+      const response = await fetch(
+        isLogin ? API_ENDPOINTS.LOGIN : API_ENDPOINTS.REGISTER,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(
+            isLogin
+              ? { email, password }
+              : {
+                  email,
+                  password,
+                  firstName,
+                  lastName: surname,
+                  day,
+                  month,
+                  year,
+                  gender,
+                }
+          ),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Something went wrong');
+      }
+
+      const userData = {
+        id: data.id,
+        email: data.email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: data.role
+      };
+
+      // Save to localStorage
+      localStorage.setItem('userToken', data.token);
+      localStorage.setItem('userData', JSON.stringify(userData));
+
+      // Update context
+      setCurrentUser(userData);
+
+      // Redirect to home
+      navigate('/');
+    } catch (err) {
+      setError(err.message);
     }
-    navigate('/'); // Chuyển hướng về trang chủ sau khi đăng nhập/đăng ký
   };
 
   return (
     <div className="auth-container">
-      <div className="container d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+      <div className="container d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
         <div className="card p-4 shadow" style={{ width: '400px', borderRadius: '10px' }}>
           {/* Logo */}
           <div className="text-center mb-3">
             <h1 className="facebook-logo">facebook</h1>
           </div>
 
-          {/* Tiêu đề */}
-          <h2 className="text-center mb-4">
-            {isLogin ? 'Log in to Facebook' : 'Create a new account'}
-          </h2>
-          {!isLogin && <p className="text-center text-muted mb-4">It's quick and easy.</p>}
+          {/* Error message */}
+          {error && (
+            <div className="alert alert-danger" role="alert">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
-            {/* Form đăng ký */}
+            {/* Registration fields */}
             {!isLogin && (
               <>
                 <div className="d-flex mb-3">
@@ -95,7 +147,7 @@ function Auth({ isLogin = true }) {
                     >
                       <option value="">Year</option>
                       {[...Array(100)].map((_, i) => {
-                        const yearOption = 2025 - i;
+                        const yearOption = new Date().getFullYear() - i;
                         return <option key={yearOption} value={yearOption}>{yearOption}</option>;
                       })}
                     </select>
@@ -128,7 +180,6 @@ function Auth({ isLogin = true }) {
                         value="Male"
                         checked={gender === 'Male'}
                         onChange={(e) => setGender(e.target.value)}
-                        required
                       />
                       <label className="form-check-label" htmlFor="male">Male</label>
                     </div>
@@ -137,31 +188,31 @@ function Auth({ isLogin = true }) {
               </>
             )}
 
-            {/* Email hoặc số điện thoại */}
+            {/* Email field */}
             <div className="mb-3">
               <input
-                type={isLogin ? 'text' : 'email'}
+                type="email"
                 className="form-control"
-                placeholder={isLogin ? 'Email address or phone number' : 'Mobile number or email address'}
+                placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
 
-            {/* Password */}
+            {/* Password field */}
             <div className="mb-3">
               <input
                 type="password"
                 className="form-control"
-                placeholder={isLogin ? 'Password' : 'New password'}
+                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
 
-            {/* Nút Submit */}
+            {/* Submit button */}
             <button
               type="submit"
               className={`btn w-100 ${isLogin ? 'btn-primary' : 'btn-success'}`}
@@ -170,27 +221,16 @@ function Auth({ isLogin = true }) {
             </button>
           </form>
 
-          {/* Liên kết chuyển đổi giữa đăng nhập và đăng ký */}
+          {/* Links */}
           <div className="text-center mt-3">
             {isLogin ? (
               <div className="links-container">
-                <a href="#" className="text-primary">Forgotten account?</a>
-                <span className="separator"> | </span>
-                <Link to="/register" className="text-primary">Sign up for Facebook</Link>
+                <Link to="/forgot-password" className="text-primary">Forgotten account?</Link>
+                <span className="separator">|</span>
+                <Link to="/register" className="text-primary">Create new account</Link>
               </div>
             ) : (
-              <>
-                {/* <p className="text-muted small">
-                People who use our service may have uploaded your contact information to Facebook.{' '}
-                <a href="#" className="text-primary">Learn more.</a>
-              </p>
-              <p className="text-muted small">
-                By clicking Sign Up, you agree to our <a href="#" className="text-primary">Terms</a>,{' '}
-                <a href="#" className="text-primary">Privacy Policy</a> and{' '}
-                <a href="#" className="text-primary">Cookies Policy</a>. You may receive SMS notifications from us and can opt out at any time.
-              </p> */}
-                <Link to="/login" className="text-primary">Already have an account?</Link>
-              </>
+              <Link to="/login" className="text-primary">Already have an account?</Link>
             )}
           </div>
         </div>
