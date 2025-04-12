@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import './Profile.css'; // Sử dụng CSS thông thường thay vì CSS module
+import './Profile.css';
 import { useUser } from '../../contexts/UserContext';
 import { API_ENDPOINTS } from '../../config/api';
-import PostForm from "../../components/Post/PostForm";
-import PostList from "../../components/Post/PostList";
+import PostForm from '../../components/Post/PostForm';
+import PostList from '../../components/Post/PostList';
 
 function Profile() {
   const [posts, setPosts] = useState([]);
@@ -17,14 +17,14 @@ function Profile() {
   const [avatarPreview, setAvatarPreview] = useState('');
   const [coverPreview, setCoverPreview] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  
+
   const currentUser = JSON.parse(localStorage.getItem('userData'));
 
   useEffect(() => {
     const fetchProfileAndPosts = async () => {
       try {
         setIsLoading(true);
-        
+
         // Fetch profile data
         const profileResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${currentUser.id}`);
         if (profileResponse.ok) {
@@ -43,7 +43,7 @@ function Profile() {
             'Authorization': `Bearer ${localStorage.getItem('userToken')}`
           }
         });
-        
+
         if (postsResponse.ok) {
           const postsData = await postsResponse.json();
           setPosts(postsData);
@@ -69,7 +69,7 @@ function Profile() {
     if (file) {
       setCoverPhoto(file);
       setCoverPreview(URL.createObjectURL(file));
-      
+
       const formData = new FormData();
       formData.append('userId', currentUser.id);
       formData.append('name', name);
@@ -95,7 +95,6 @@ function Profile() {
         setCoverPreview(`${API_ENDPOINTS.BASE_URL}${updatedProfile.coverPhoto}`);
       } catch (error) {
         console.error('Error updating cover photo:', error);
-        // Revert preview if update fails
         setCoverPreview(coverPreview);
       }
     }
@@ -106,7 +105,7 @@ function Profile() {
     if (file) {
       setAvatar(file);
       setAvatarPreview(URL.createObjectURL(file));
-      
+
       const formData = new FormData();
       formData.append('userId', currentUser.id);
       formData.append('name', name);
@@ -132,10 +131,51 @@ function Profile() {
         setAvatarPreview(`${API_ENDPOINTS.BASE_URL}${updatedProfile.avatar}`);
       } catch (error) {
         console.error('Error updating avatar:', error);
-        // Revert preview if update fails
         setAvatarPreview(avatarPreview);
       }
     }
+  };
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('userId', currentUser.id);
+    formData.append('name', name);
+    formData.append('email', email);
+    formData.append('bio', bio);
+    formData.append('gender', gender);
+    if (avatar) formData.append('avatar', avatar);
+    if (coverPhoto) formData.append('coverPhoto', coverPhoto);
+
+    try {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/update`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      const updatedProfile = await response.json();
+      setName(updatedProfile.firstName + ' ' + updatedProfile.lastName);
+      setBio(updatedProfile.bio || '');
+      setAvatarPreview(updatedProfile.avatar ? `${API_ENDPOINTS.BASE_URL}${updatedProfile.avatar}` : avatarPreview);
+      setCoverPreview(updatedProfile.coverPhoto ? `${API_ENDPOINTS.BASE_URL}${updatedProfile.coverPhoto}` : coverPreview);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    // Reset form fields to original values (optional, depending on your preference)
+    setName(currentUser.firstName + ' ' + currentUser.lastName);
+    setBio(currentUser.bio || '');
   };
 
   if (isLoading) {
@@ -143,7 +183,7 @@ function Profile() {
   }
 
   return (
-    <div className="profile-container" style={{ marginTop: "62px" }}>
+    <div className="profile-container" style={{ marginTop: '62px' }}>
       <div className="cover-photo-section">
         {coverPreview && (
           <img
@@ -151,7 +191,7 @@ function Profile() {
             alt="Cover"
             className="cover-photo"
             onError={(e) => {
-              e.target.src = "/img/default-cover.jpg";
+              e.target.src = '/img/default-cover.jpg';
             }}
           />
         )}
@@ -162,7 +202,7 @@ function Profile() {
               type="file"
               accept="image/*"
               onChange={handleCoverChange}
-              style={{ display: "none" }}
+              style={{ display: 'none' }}
             />
           </label>
         )}
@@ -171,12 +211,12 @@ function Profile() {
       <div className="profile-header">
         <div className="avatar-section">
           {avatarPreview && (
-            <img 
-              src={avatarPreview} 
-              alt="Avatar" 
+            <img
+              src={avatarPreview}
+              alt="Avatar"
               className="avatar"
               onError={(e) => {
-                e.target.src = "/img/default-avatar.jpg";
+                e.target.src = '/img/default-avatar.jpg';
               }}
             />
           )}
@@ -188,13 +228,13 @@ function Profile() {
                   type="file"
                   accept="image/*"
                   onChange={handleAvatarChange}
-                  style={{ display: "none" }}
+                  style={{ display: 'none' }}
                 />
               </label>
             </div>
           )}
         </div>
-        <div className="profile-info" style={{ marginTop: "86px" }}>
+        <div className="profile-info" style={{ marginTop: '86px' }}>
           <h1 className="profile-name">{name}</h1>
           <p className="profile-bio">{bio}</p>
           {!isEditing && (
@@ -208,7 +248,51 @@ function Profile() {
         </div>
       </div>
 
-      {/* Profile content section */}
+      {isEditing && (
+        <div className="profile-form-section">
+          <h2 className="form-title">Edit Profile</h2>
+          <form className="profile-form" onSubmit={handleSaveProfile}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="name">
+                Name
+              </label>
+              <input
+                id="name"
+                className="form-input"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="bio">
+                Bio
+              </label>
+              <textarea
+                id="bio"
+                className="form-textarea"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows="4"
+              />
+            </div>
+            <div className="form-buttons">
+              <button
+                type="button"
+                className="cancel-button save-button"
+                onClick={handleCancelEdit}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="save-button">
+                Save
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <div className="profile-content">
         <PostForm onAddPost={handleAddPost} />
         {posts.length > 0 ? (

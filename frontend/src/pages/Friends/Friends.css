@@ -4,7 +4,7 @@
   min-height: 100vh;
 }
 
-.sidebar {
+.friends-page .sidebar {
   width: 250px;
   padding: 20px;
   background-color: #f8f9fa;
@@ -13,28 +13,31 @@
   overflow-y: auto;
 }
 
-.main-content {
+.friends-page .main-content {
   flex: 1;
   padding: 20px;
   margin-left: 250px;
 }
 
-.card {
+.friends-page .card {
   transition: transform 0.2s;
+  width: 100%;
+  max-width: 200px;
+  margin: 0 auto;
 }
 
-.card:hover {
+.friends-page .card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.card-image-container {
+.friends-page .card-image-container {
   position: relative;
   padding-top: 100%;
   overflow: hidden;
 }
 
-.card-image-container img {
+.friends-page .card-image-container img {
   position: absolute;
   top: 0;
   left: 0;
@@ -43,7 +46,20 @@
   object-fit: cover;
 }
 
-.nav-link {
+.friends-page .card-body {
+  padding: 10px;
+  text-align: center;
+}
+
+.friends-page .card-title {
+  font-size: 1rem;
+  margin-bottom: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friends-page .nav-link {
   cursor: pointer;
   padding: 10px 15px;
   border: none;
@@ -53,15 +69,102 @@
   transition: background-color 0.2s;
 }
 
-.nav-link:hover {
+.friends-page .nav-link:hover {
   background-color: #e9ecef;
 }
 
-.nav-link.active {
+.friends-page .nav-link.active {
   background-color: #0d6efd;
   color: white;
 }
 
-.pagination {
+.friends-page .pagination {
   margin-top: 20px;
+}
+
+.friends-page .pagination-arrow {
+  width: 40px; /* Kích thước nhỏ giống carousel */
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0; /* Xóa padding để mũi tên căn giữa */
+  font-size: 1.2rem; /* Kích thước mũi tên */
+  border-radius: 50%; /* Hình tròn giống carousel */
+  line-height: 1; /* Đảm bảo mũi tên không lệch */
+}
+
+.friends-page .pagination-arrow:disabled {
+  opacity: 0.5; /* Làm mờ khi vô hiệu hóa */
+  cursor: not-allowed;
+}
+
+.friends-page .pagination-text {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #333;
+}
+
+/* Nút trong friends-page */
+.friends-page .button-group .btn {
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+/* Tùy chỉnh nút Chấp nhận và Từ chối */
+.friends-page .button-group .btn-primary,
+.friends-page .button-group .btn-secondary {
+  min-width: 80px;
+  padding: 5px 10px;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.friends-page .button-group.request-buttons .btn {
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .friends-page .sidebar {
+    width: 200px;
+  }
+  .friends-page .main-content {
+    margin-left: 200px;
+  }
+  .friends-page .card {
+    max-width: 160px;
+  }
+  .friends-page .pagination-arrow {
+    width: 36px; /* Nhỏ hơn trên tablet */
+    height: 36px;
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .friends-page {
+    flex-direction: column;
+  }
+  .friends-page .sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+  }
+  .friends-page .main-content {
+    margin-left: 0;
+    padding: 10px;
+  }
+  .friends-page .card {
+    max-width: 100%;
+  }
+  .friends-page .pagination-arrow {
+    width: 32px; /* Nhỏ hơn trên mobile */
+    height: 32px;
+    font-size: 1rem;
+  }
+  .friends-page .pagination-text {
+    font-size: 0.9rem; /* Giảm kích thước chữ */
+  }
 }

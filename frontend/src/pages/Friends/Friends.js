@@ -105,11 +105,11 @@ function Friends() {
     }
   };
 
-  const filteredData = activeTab === 'suggestions' 
-    ? suggestions 
-    : activeTab === 'requests' 
-    ? requests 
-    : friends;
+  const filteredData = activeTab === 'suggestions'
+    ? suggestions
+    : activeTab === 'requests'
+      ? requests
+      : friends;
 
   const totalPages = Math.ceil(filteredData.length / friendsPerPage);
   const startIndex = (currentPage - 1) * friendsPerPage;
@@ -171,20 +171,20 @@ function Friends() {
                     </h5>
                     <div className="button-group">
                       {activeTab === 'requests' && (
-                        <>
+                        <div className="button-group request-buttons">
                           <button
-                            className="btn btn-primary btn-sm"
+                            className="btn btn-primary"
                             onClick={() => handleFriendAction(item.requestId, 'accept')}
                           >
                             Chấp nhận
                           </button>
                           <button
-                            className="btn btn-secondary btn-sm"
+                            className="btn btn-secondary"
                             onClick={() => handleFriendAction(item.requestId, 'reject')}
                           >
                             Từ chối
                           </button>
-                        </>
+                        </div>
                       )}
                       {activeTab === 'friends' && (
                         <button
@@ -209,25 +209,25 @@ function Friends() {
             ))}
           </div>
         )}
-        
+
         {totalPages > 1 && (
-          <div className="pagination justify-content-center">
+          <div className="pagination d-flex align-items-center justify-content-center">
             <button
-              className="btn btn-outline-primary me-2"
+              className="btn btn-outline-primary pagination-arrow"
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
             >
-              Previous
+              &lt;
             </button>
-            <span className="mx-2">
+            <span className="pagination-text mx-3">
               Page {currentPage} of {totalPages}
             </span>
             <button
-              className="btn btn-outline-primary ms-2"
+              className="btn btn-outline-primary pagination-arrow"
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
             >
-              Next
+              &gt;
             </button>
           </div>
         )}
