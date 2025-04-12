@@ -4,6 +4,7 @@
 /node_modules
 /.pnp
 .pnp.js
+facebook_clone/uploads/*
 
 # testing
 /coverage
