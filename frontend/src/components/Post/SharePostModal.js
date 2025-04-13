@@ -69,7 +69,7 @@ const SharePostModal = ({ show, onHide, post, onShareSuccess }) => {
                         <img
                             src={post.user?.avatar 
                                 ? `${API_ENDPOINTS.BASE_URL}${post.user.avatar}` 
-                                : '/default-avatar.png'}
+                                : '/default-imgs/avatar.png'}
                             alt={post.user?.firstName || 'User'}
                             className="rounded-circle me-2"
                             style={{ width: '32px', height: '32px' }}

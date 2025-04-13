@@ -7,6 +7,7 @@ import { useUser } from '../../contexts/UserContext';
 function Auth({ isLogin = true }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState(''); // New state for confirm password
   const [firstName, setFirstName] = useState('');
   const [surname, setSurname] = useState('');
   const [day, setDay] = useState('');
@@ -17,9 +18,60 @@ function Auth({ isLogin = true }) {
   const navigate = useNavigate();
   const { setCurrentUser } = useUser();
 
+  // Email regex for validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  // Month mapping for date calculations
+  const monthMap = {
+    Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+    Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // Client-side validations
+    if (!isLogin) {
+      // Validate email format
+      if (!emailRegex.test(email)) {
+        setError('Email đúng có dạng xxxx@xx.xx.');
+        return;
+      }
+
+      // Validate password length
+      if (password.length < 6) {
+        setError('Mật khẩu phải có độ dài ít nhất 6 ký tự.');
+        return;
+      }
+
+      // Validate confirm password
+      if (password !== confirmPassword) {
+        setError('Mật khẩu không khớp.');
+        return;
+      }
+
+      // Validate age
+      const birthDate = new Date(year, monthMap[month], day);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      const dayDiff = today.getDate() - birthDate.getDate();
+      
+      // Adjust age if birthday hasn't occurred this year
+      const adjustedAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+      
+      if (adjustedAge <= 6) {
+        setError('Rất tiếc, người dùng phải trên 6 tuổi.');
+        return;
+      }
+    } else {
+      // Validate email format for login
+      if (!emailRegex.test(email)) {
+        setError('Email đúng có dạng xxxx@xx.xx.');
+        return;
+      }
+    }
 
     try {
       const response = await fetch(
@@ -60,14 +112,9 @@ function Auth({ isLogin = true }) {
         role: data.role
       };
 
-      // Save to localStorage
       localStorage.setItem('userToken', data.token);
       localStorage.setItem('userData', JSON.stringify(userData));
-
-      // Update context
       setCurrentUser(userData);
-
-      // Redirect to home
       navigate('/');
     } catch (err) {
       setError(err.message);
@@ -78,12 +125,10 @@ function Auth({ isLogin = true }) {
     <div className="auth-container">
       <div className="container d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
         <div className="card p-4 shadow" style={{ width: '400px', borderRadius: '10px' }}>
-          {/* Logo */}
           <div className="text-center mb-3">
             <h1 className="facebook-logo">facebook</h1>
           </div>
 
-          {/* Error message */}
           {error && (
             <div className="alert alert-danger" role="alert">
               {error}
@@ -91,7 +136,6 @@ function Auth({ isLogin = true }) {
           )}
 
           <form onSubmit={handleSubmit}>
-            {/* Registration fields */}
             {!isLogin && (
               <>
                 <div className="d-flex mb-3">
@@ -113,7 +157,6 @@ function Auth({ isLogin = true }) {
                   />
                 </div>
 
-                {/* Date of Birth */}
                 <div className="mb-3">
                   <label className="form-label">Date of birth</label>
                   <div className="d-flex">
@@ -154,7 +197,6 @@ function Auth({ isLogin = true }) {
                   </div>
                 </div>
 
-                {/* Gender */}
                 <div className="mb-3">
                   <label className="form-label">Gender</label>
                   <div className="d-flex">
@@ -188,7 +230,6 @@ function Auth({ isLogin = true }) {
               </>
             )}
 
-            {/* Email field */}
             <div className="mb-3">
               <input
                 type="email"
@@ -200,7 +241,6 @@ function Auth({ isLogin = true }) {
               />
             </div>
 
-            {/* Password field */}
             <div className="mb-3">
               <input
                 type="password"
@@ -209,10 +249,24 @@ function Auth({ isLogin = true }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={isLogin ? undefined : 6} // Enforce min length on client
               />
             </div>
 
-            {/* Submit button */}
+            {!isLogin && (
+              <div className="mb-3">
+                <input
+                  type="password"
+                  className="form-control"
+                  placeholder="Confirm Password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+            )}
+
             <button
               type="submit"
               className={`btn w-100 ${isLogin ? 'btn-primary' : 'btn-success'}`}
@@ -221,7 +275,6 @@ function Auth({ isLogin = true }) {
             </button>
           </form>
 
-          {/* Links */}
           <div className="text-center mt-3">
             {isLogin ? (
               <div className="links-container">

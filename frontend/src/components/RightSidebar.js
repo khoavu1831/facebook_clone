@@ -29,7 +29,7 @@ function RightSidebar() {
   }, [currentUser?.id]);
 
   const getFullImageUrl = (path) => {
-    if (!path) return '/img/default-avatar.jpg';
+    if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http')) return path;
     return `${API_ENDPOINTS.BASE_URL}${path}`;
   };
@@ -47,7 +47,7 @@ function RightSidebar() {
                 className="rounded-circle"
                 style={{ width: '30px', height: '30px', objectFit: 'cover' }}
                 onError={(e) => {
-                  e.target.src = '/img/default-avatar.jpg';
+                  e.target.src = '/default-imgs/avatar.png';
                 }}
               />
               <span>{`${friend.firstName} ${friend.lastName}`}</span>

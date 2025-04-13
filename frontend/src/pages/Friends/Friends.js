@@ -3,7 +3,7 @@ import { API_ENDPOINTS } from '../../config/api';
 import './Friends.css';
 
 const getFullImageUrl = (path) => {
-  if (!path) return 'https://via.placeholder.com/150';
+  if (!path) return '/default-imgs/avatar.png';
   if (path.startsWith('http')) return path;
   return `${API_ENDPOINTS.BASE_URL}${path}`;
 };
@@ -152,7 +152,7 @@ function Friends() {
           {activeTab === 'requests' ? 'Lời mời kết bạn' : activeTab === 'friends' ? 'Danh sách bạn bè' : 'Gợi ý bạn bè'}
         </h1>
         {currentItems.length === 0 ? (
-          <p className="text-muted">Không có dữ liệu để hiển thị.</p>
+          <p className="text-muted">Chưa có lời mời kết bạn nào.</p>
         ) : (
           <div className="row">
             {currentItems.map((item) => (

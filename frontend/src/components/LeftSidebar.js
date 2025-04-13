@@ -27,7 +27,7 @@ function LeftSidebar() {
   }, [currentUser]);
 
   const getFullImageUrl = (path) => {
-    if (!path) return '/img/default-avatar.jpg';
+    if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http')) return path;
     return `${API_ENDPOINTS.BASE_URL}${path}`;
   };

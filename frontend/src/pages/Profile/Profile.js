@@ -33,8 +33,8 @@ function Profile() {
           setEmail(profileData.email);
           setBio(profileData.bio || '');
           setGender(profileData.gender || '');
-          setAvatarPreview(profileData.avatar ? `${API_ENDPOINTS.BASE_URL}${profileData.avatar}` : '/img/default-avatar.jpg');
-          setCoverPreview(profileData.coverPhoto ? `${API_ENDPOINTS.BASE_URL}${profileData.coverPhoto}` : '/img/default-cover.jpg');
+          setAvatarPreview(profileData.avatar ? `${API_ENDPOINTS.BASE_URL}${profileData.avatar}` : '/default-imgs/avatar.png');
+          setCoverPreview(profileData.coverPhoto ? `${API_ENDPOINTS.BASE_URL}${profileData.coverPhoto}` : '/default-imgs/cover.jpg');
         }
 
         // Fetch user's posts
@@ -191,7 +191,7 @@ function Profile() {
             alt="Cover"
             className="cover-photo"
             onError={(e) => {
-              e.target.src = '/img/default-cover.jpg';
+              e.target.src = '/default-imgs/cover.jpg';
             }}
           />
         )}
@@ -216,7 +216,7 @@ function Profile() {
               alt="Avatar"
               className="avatar"
               onError={(e) => {
-                e.target.src = '/img/default-avatar.jpg';
+                e.target.src = '/default-imgs/avatar.png';
               }}
             />
           )}

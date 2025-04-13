@@ -29,7 +29,7 @@ function PostForm({ onAddPost }) {
   }, [currentUser]);
 
   const getFullImageUrl = (path) => {
-    if (!path) return '/img/default-avatar.jpg';
+    if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http')) return path;
     return `${API_ENDPOINTS.BASE_URL}${path}`;
   };
@@ -74,7 +74,6 @@ function PostForm({ onAddPost }) {
 
       const newPost = await response.json();
       
-      // Add user information to the new post if it's missing
       if (!newPost.user) {
         newPost.user = {
           id: currentUser.id,
@@ -84,7 +83,6 @@ function PostForm({ onAddPost }) {
         };
       }
 
-      // Add full URLs for media
       if (newPost.images) {
         newPost.images = newPost.images.map(image => 
           image.startsWith('http') ? image : `${API_ENDPOINTS.BASE_URL}${image}`
@@ -98,7 +96,6 @@ function PostForm({ onAddPost }) {
       
       onAddPost(newPost);
       
-      // Reset form
       setContent('');
       setMedia(null);
       setMediaPreview(null);
@@ -108,6 +105,12 @@ function PostForm({ onAddPost }) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleCancel = () => {
+    setContent('');
+    setMedia(null);
+    setMediaPreview(null);
   };
 
   return (
@@ -129,11 +132,21 @@ function PostForm({ onAddPost }) {
           />
         </div>
         {mediaPreview && (
-          <div className="mb-3">
+          <div className="mb-3 text-center">
             {media?.type.includes('video') ? (
-              <video src={mediaPreview} controls className="img-fluid rounded" />
+              <video 
+                src={mediaPreview} 
+                controls 
+                className="img-fluid rounded" 
+                style={{ maxWidth: '300px', display: 'block', margin: '0 auto' }} 
+              />
             ) : (
-              <img src={mediaPreview} alt="Preview" className="img-fluid rounded" />
+              <img 
+                src={mediaPreview} 
+                alt="Preview" 
+                className="img-fluid rounded" 
+                style={{ maxWidth: '300px', display: 'block', margin: '0 auto' }} 
+              />
             )}
           </div>
         )}
@@ -159,13 +172,24 @@ function PostForm({ onAddPost }) {
             Feeling/Activity
           </button>
         </div>
-        <button 
-          className="btn btn-primary w-100 post-button" 
-          onClick={handleSubmit}
-          disabled={isLoading || (!content.trim() && !media)}
-        >
-          {isLoading ? 'Posting...' : 'Post'}
-        </button>
+        <div className="d-flex justify-content-end gap-2">
+          {(content.trim() || media) && (
+            <button
+              className="btn btn-outline-secondary btn-sm"
+              onClick={handleCancel}
+              disabled={isLoading}
+            >
+              Cancel
+            </button>
+          )}
+          <button 
+            className="btn btn-primary post-button" 
+            onClick={handleSubmit}
+            disabled={isLoading || (!content.trim() && !media)}
+          >
+            {isLoading ? 'Posting...' : 'Post'}
+          </button>
+        </div>
       </div>
     </div>
   );

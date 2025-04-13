@@ -48,7 +48,7 @@ public class AuthController {
 
         // Kiểm tra user tồn tại và mật khẩu đúng
         if (user == null || !user.getPassword().equals(credentials.get("password"))) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Invalid credentials"));
+            return ResponseEntity.badRequest().body(Map.of("message", "Thông tin đăng nhập không chính xác."));
         }
 
         // Tạo response
