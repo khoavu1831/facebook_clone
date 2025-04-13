@@ -34,7 +34,7 @@ function PostList({ posts, setPosts }) {
   }, []);
 
   const getFullImageUrl = (path) => {
-    if (!path) return '/img/default-avatar.jpg';
+    if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http')) return path;
     return `${API_ENDPOINTS.BASE_URL}${path}`;
   };
@@ -61,7 +61,7 @@ function PostList({ posts, setPosts }) {
       if (!response.ok) throw new Error('Failed to like post');
 
       const updatedPost = await response.json();
-      setPosts(posts.map(post => 
+      setPosts(posts.map(post =>
         post.id === postId ? {
           ...post,
           ...updatedPost,
@@ -99,7 +99,7 @@ function PostList({ posts, setPosts }) {
       if (!response.ok) throw new Error('Failed to add comment');
 
       const updatedPost = await response.json();
-      setPosts(posts.map(post => 
+      setPosts(posts.map(post =>
         post.id === postId ? updatedPost : post
       ));
       setCommentInputs(prev => ({ ...prev, [postId]: '' }));
@@ -118,7 +118,7 @@ function PostList({ posts, setPosts }) {
 
   const PostContent = ({ post }) => {
     const isSharedPost = post.isShared || post.shared; // Check both flags
-    
+
     return (
       <div className="post-content">
         {isSharedPost && (
@@ -126,7 +126,7 @@ function PostList({ posts, setPosts }) {
             <p>{post.content}</p>
           </div>
         )}
-        
+
         {isSharedPost && post.originalPost ? (
           <div className="shared-post border rounded p-3">
             <div className="d-flex align-items-center mb-2">
@@ -138,21 +138,21 @@ function PostList({ posts, setPosts }) {
               />
               <div>
                 <div className="fw-bold">
-                  {post.originalPost.user 
+                  {post.originalPost.user
                     ? `${post.originalPost.user.firstName || ''} ${post.originalPost.user.lastName || ''}`
                     : 'Unknown User'}
                 </div>
                 <div className="text-muted small">
-                  {post.originalPost.createdAt 
-                    ? new Date(post.originalPost.createdAt).toLocaleString() 
+                  {post.originalPost.createdAt
+                    ? new Date(post.originalPost.createdAt).toLocaleString()
                     : ''}
                 </div>
               </div>
             </div>
-            
+
             <div className="original-post-content">
               <p>{post.originalPost.content}</p>
-              
+
               {post.originalPost.images?.length > 0 && (
                 <div className="media-grid mb-3">
                   {post.originalPost.images.map((image, index) => (
@@ -166,7 +166,7 @@ function PostList({ posts, setPosts }) {
                   ))}
                 </div>
               )}
-              
+
               {post.originalPost.videos?.length > 0 && (
                 <div className="media-grid mb-3">
                   {post.originalPost.videos.map((video, index) => (
@@ -242,24 +242,39 @@ function PostList({ posts, setPosts }) {
                 </small>
               </div>
             </div>
-            
+
             <PostContent post={post} />
-            
+
             <div className="d-flex gap-3 mb-3">
-              <button 
-                className={`btn btn-link ${post.likes?.includes(userData.id) ? 'text-primary' : 'text-secondary'}`}
+              <button
+                className={`btn btn-link like-button ${post.likes?.includes(userData.id) ? 'text-primary' : 'text-secondary'}`}
                 onClick={() => handleLike(post.id)}
               >
-                👍 {post.likes?.length || 0} Like
+                <img
+                  src={post.likes?.includes(userData.id) ? "/img/icons/liked.png" : "/img/icons/like.png"}
+                  alt="Marketplace"
+                  className="action-icon"
+                />
+                <span>{post.likes?.length || 0} Like</span>
               </button>
               <button className="btn btn-link text-secondary">
-                💬 {post.comments?.length || 0} Comment
+                <img
+                  src="/img/icons/comment.png"
+                  alt="Marketplace"
+                  className="action-icon"
+                />
+                <span>{post.comments?.length || 0} Comment</span>
               </button>
-              <button 
+              <button
                 className="btn btn-link text-secondary"
                 onClick={() => handleShareClick(post)}
               >
-                ↗️ Share
+                <img
+                  src="/img/icons/share.png"
+                  alt="Marketplace"
+                  className="action-icon"
+                />
+                <span>Share</span>
               </button>
             </div>
 
@@ -280,23 +295,23 @@ function PostList({ posts, setPosts }) {
                   </div>
                 </div>
               ))}
-              
-              <div className="d-flex gap-2">
+
+              <div className="d-flex gap-2 align-items-center">
                 <img
                   src={getFullImageUrl(currentUser?.avatar)}
                   alt="User"
                   className="rounded-circle"
                   style={{ width: '30px', height: '30px' }}
                 />
-                <div className="flex-grow-1">
+                <div className="flex-grow-1 position-relative">
                   <input
                     type="text"
-                    className="form-control rounded-pill"
+                    className="form-control rounded-pill comment-input"
                     placeholder="Write a comment..."
                     value={commentInputs[post.id] || ''}
-                    onChange={(e) => setCommentInputs(prev => ({ 
-                      ...prev, 
-                      [post.id]: e.target.value 
+                    onChange={(e) => setCommentInputs(prev => ({
+                      ...prev,
+                      [post.id]: e.target.value
                     }))}
                     onKeyPress={(e) => {
                       if (e.key === 'Enter' && !isLoading[post.id]) {
@@ -305,6 +320,18 @@ function PostList({ posts, setPosts }) {
                     }}
                     disabled={isLoading[post.id]}
                   />
+                  <button
+                    className="btn btn-link send-comment-btn"
+                    onClick={() => handleComment(post.id)}
+                    disabled={isLoading[post.id] || !commentInputs[post.id]?.trim()}
+                    title="Send comment"
+                  >
+                    <img
+                      src="/img/icons/send-comment.png"
+                      alt="Send"
+                      className="action-icon"
+                    />
+                  </button>
                 </div>
               </div>
             </div>

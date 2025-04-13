@@ -1,3 +1,4 @@
+/* Post.css */
 .shared-post {
     background-color: #f8f9fa;
     border: 1px solid #dee2e6;
@@ -19,11 +20,13 @@
     display: grid;
     gap: 8px;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    justify-items: center;
 }
 
-.media-grid img,
+.media-grid img:not(.rounded-circle),
 .media-grid video {
     width: 100%;
+    max-width: 300px;
     object-fit: cover;
     border-radius: 8px;
 }
@@ -46,4 +49,8 @@
 
 .shared-post .post-content {
     padding: 10px;
+}
+
+.shared-post .d-flex.align-items-center.mb-2 {
+    justify-content: flex-start;
 }
