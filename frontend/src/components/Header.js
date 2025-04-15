@@ -60,7 +60,7 @@ function Header() {
             </Link>
           </div>
 
-          {/* Messenger */}
+          {/* Messenger
           <div className="text-secondary fs-5">
             <Link to="/">
               <img
@@ -69,7 +69,7 @@ function Header() {
                 style={{ width: "36px", height: "36px" }}
               />
             </Link>
-          </div>
+          </div> */}
           <button
             className="btn btn-sm"
             onClick={handleLogout}
