@@ -11,7 +11,7 @@ const Admin = () => {
     // Check if admin is logged in
     const adminToken = localStorage.getItem('adminToken');
     if (!adminToken) {
-      navigate('/admin/login'); // Redirect to admin login if not authenticated
+      navigate('/admin/login');
     }
   }, [navigate]);
 

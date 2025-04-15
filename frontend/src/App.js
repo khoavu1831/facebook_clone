@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-d
 import { UserProvider } from './contexts/UserContext';
 import { isUserLoggedIn } from './utils/auth';
 import Header from './components/Header';
+import ChatForm from './components/ChatForm';
 import Home from './pages/Home';
 import Profile from './pages/Profile/Profile';
 import Friends from './pages/Friends/Friends';
@@ -41,6 +42,7 @@ function App() {
                       <Route path="/profile" element={<Profile />} />
                       <Route path="/friends" element={<Friends />} />
                     </Routes>
+                    <ChatForm />
                   </>
                 </ProtectedRoute>
               }

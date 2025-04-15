@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Form, Button, Card, Alert } from 'react-bootstrap';
-import { API_ENDPOINTS } from '../../config/api';
 import './AdminAuth.css';
 
 const AdminAuth = () => {
@@ -14,37 +13,28 @@ const AdminAuth = () => {
     e.preventDefault();
     setError('');
 
-    try {
-      const response = await fetch(API_ENDPOINTS.ADMIN_LOGIN, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: username, password }),
-      });
+    // Fixed admin credentials
+    const adminCredentials = {
+      username: 'admin',
+      password: 'admin',
+      role: 'ADMIN',
+      id: '1',
+      token: 'admin-jwt-token',
+    };
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Invalid credentials');
-      }
-
-      // Verify admin role
-      if (data.role !== 'ADMIN') {
-        throw new Error('Unauthorized access');
-      }
-
-      // Lưu thông tin admin vào localStorage
-      localStorage.setItem('adminToken', data.token);
+    // Validate credentials
+    if (username === adminCredentials.username && password === adminCredentials.password) {
+      // Store admin info in localStorage
+      localStorage.setItem('adminToken', adminCredentials.token);
       localStorage.setItem('adminData', JSON.stringify({
-        id: data.id,
-        email: data.email,
-        role: data.role
+        id: adminCredentials.id,
+        username: adminCredentials.username,
+        role: adminCredentials.role,
       }));
 
       navigate('/admin');
-    } catch (err) {
-      setError(err.message);
+    } else {
+      setError('Invalid username or password');
     }
   };
 
@@ -55,14 +45,6 @@ const AdminAuth = () => {
           <Col md={6} lg={4}>
             <Card className="admin-auth-box">
               <Card.Body>
-                <div className="logo">
-                  <img
-                    src="https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg"
-                    alt="Facebook Logo"
-                    width="40"
-                    height="40"
-                  />
-                </div>
                 <h2 className="text-center">Admin Login</h2>
                 {error && (
                   <Alert variant="danger" className="mt-3">
