@@ -17,25 +17,42 @@ function Profile() {
   const [avatarPreview, setAvatarPreview] = useState('');
   const [coverPreview, setCoverPreview] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [error, setError] = useState(null);
 
-  const currentUser = JSON.parse(localStorage.getItem('userData'));
+  // Get userData from localStorage
+  const userData = localStorage.getItem('userData');
+  const currentUser = userData ? JSON.parse(userData) : null;
 
   useEffect(() => {
     const fetchProfileAndPosts = async () => {
       try {
         setIsLoading(true);
+        setError(null);
+
+        if (!currentUser?.id) {
+          setError('User not found');
+          setIsLoading(false);
+          return;
+        }
 
         // Fetch profile data
-        const profileResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${currentUser.id}`);
-        if (profileResponse.ok) {
-          const profileData = await profileResponse.json();
-          setName(`${profileData.firstName} ${profileData.lastName}`);
-          setEmail(profileData.email);
-          setBio(profileData.bio || '');
-          setGender(profileData.gender || '');
-          setAvatarPreview(profileData.avatar ? `${API_ENDPOINTS.BASE_URL}${profileData.avatar}` : '/default-imgs/avatar.png');
-          setCoverPreview(profileData.coverPhoto ? `${API_ENDPOINTS.BASE_URL}${profileData.coverPhoto}` : '/default-imgs/cover.jpg');
+        const profileResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${currentUser.id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+          }
+        });
+
+        if (!profileResponse.ok) {
+          throw new Error('Failed to fetch profile');
         }
+
+        const profileData = await profileResponse.json();
+        setName(`${profileData.firstName} ${profileData.lastName}`);
+        setEmail(profileData.email);
+        setBio(profileData.bio || '');
+        setGender(profileData.gender || '');
+        setAvatarPreview(profileData.avatar ? `${API_ENDPOINTS.BASE_URL}${profileData.avatar}` : '/default-imgs/avatar.png');
+        setCoverPreview(profileData.coverPhoto ? `${API_ENDPOINTS.BASE_URL}${profileData.coverPhoto}` : '/default-imgs/cover.jpg');
 
         // Fetch user's posts
         const postsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts?userId=${currentUser.id}`, {
@@ -44,21 +61,38 @@ function Profile() {
           }
         });
 
-        if (postsResponse.ok) {
-          const postsData = await postsResponse.json();
-          setPosts(postsData);
+        if (!postsResponse.ok) {
+          throw new Error('Failed to fetch posts');
         }
+
+        const postsData = await postsResponse.json();
+        setPosts(Array.isArray(postsData) ? postsData : []);
+
       } catch (error) {
         console.error('Error fetching data:', error);
+        setError(error.message);
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (currentUser?.id) {
-      fetchProfileAndPosts();
-    }
+    fetchProfileAndPosts();
   }, [currentUser?.id]);
+
+  // Nếu không có user data, redirect về login
+  useEffect(() => {
+    if (!currentUser) {
+      window.location.href = '/login';
+    }
+  }, [currentUser]);
+
+  if (error) {
+    return <div className="alert alert-danger m-3">{error}</div>;
+  }
+
+  if (isLoading) {
+    return <div className="text-center mt-5">Loading...</div>;
+  }
 
   const handleAddPost = (newPost) => {
     setPosts(prevPosts => [newPost, ...prevPosts]);
@@ -178,10 +212,6 @@ function Profile() {
     setBio(currentUser.bio || '');
   };
 
-  if (isLoading) {
-    return <div className="text-center mt-5">Loading...</div>;
-  }
-
   return (
     <div className="profile-container" style={{ marginTop: '62px' }}>
       <div className="cover-photo-section">
@@ -296,7 +326,11 @@ function Profile() {
       <div className="profile-content">
         <PostForm onAddPost={handleAddPost} />
         {posts.length > 0 ? (
-          <PostList posts={posts} setPosts={setPosts} />
+          <PostList 
+            posts={posts} 
+            setPosts={setPosts} 
+            currentUser={currentUser}
+          />
         ) : (
           <p className="text-center mt-3">No posts yet</p>
         )}

@@ -3,8 +3,17 @@ package com.example.facebook_clone.model;
 public class CommentRequest {
     private String content;
     private String userId;
+    private String parentId;  // Thêm trường parentId
 
     // Getters and Setters
+    public String getParentId() {
+        return parentId;
+    }
+
+    public void setParentId(String parentId) {
+        this.parentId = parentId;
+    }
+
     public String getContent() {
         return content;
     }

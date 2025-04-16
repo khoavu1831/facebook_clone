@@ -6,14 +6,24 @@ import LeftSidebar from '../components/LeftSidebar';
 import RightSidebar from '../components/RightSidebar';
 import { API_ENDPOINTS } from '../config/api';
 
-function Home() {
-  const { currentUser } = useUser();
+const Home = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { currentUser } = useUser();
 
   useEffect(() => {
+    // Debug log for currentUser
+    console.log("currentUser from context:", currentUser);
+
     const fetchPosts = async () => {
       try {
+        // Check if user is authenticated
+        if (!currentUser?.id) {
+          console.log("No user ID found, redirecting to login");
+          window.location.href = '/login';
+          return;
+        }
+
         const response = await fetch(`${API_ENDPOINTS.POSTS}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('userToken')}`
@@ -22,26 +32,29 @@ function Home() {
         
         if (response.ok) {
           const data = await response.json();
-          setPosts(data);
+          console.log("Fetched posts:", data); // Debug log for posts
+          setPosts(Array.isArray(data) ? data.filter(post => post && post.id) : []);
+        } else {
+          console.error('Failed to fetch posts');
+          setPosts([]);
         }
       } catch (error) {
         console.error('Error fetching posts:', error);
+        setPosts([]);
       } finally {
         setLoading(false);
       }
     };
 
-    if (currentUser) {
-      fetchPosts();
-    }
-  }, [currentUser]);
+    fetchPosts();
+  }, [currentUser]); // Add currentUser as dependency
 
-  const addPost = (newPost) => {
-    setPosts([newPost, ...posts]);
-  };
+  if (!currentUser) {
+    return <div>Please log in to continue</div>;
+  }
 
   if (loading) {
-    return <div className="text-center mt-5">Loading...</div>;
+    return <div>Loading...</div>;
   }
 
   return (
@@ -51,8 +64,15 @@ function Home() {
         <div className="col-6 offset-3">
           {currentUser && (
             <>
-              <PostForm onAddPost={addPost} user={currentUser} />
-              <PostList posts={posts} setPosts={setPosts} currentUser={currentUser} />
+              <PostForm 
+                onAddPost={(newPost) => setPosts([newPost, ...posts])} 
+                currentUser={currentUser} // Pass currentUser to PostForm
+              />
+              <PostList 
+                posts={posts} 
+                currentUser={currentUser}
+                userData={currentUser} // For backward compatibility
+              />
             </>
           )}
         </div>
@@ -60,6 +80,6 @@ function Home() {
       </div>
     </div>
   );
-}
+};
 
 export default Home;

@@ -8,25 +8,44 @@ function PostForm({ onAddPost }) {
   const [mediaPreview, setMediaPreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [error, setError] = useState(null);
+  
   const currentUser = JSON.parse(localStorage.getItem('userData'));
 
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        if (currentUser?.id) {
-          const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${currentUser.id}`);
-          if (response.ok) {
-            const data = await response.json();
-            setUserProfile(data);
-          }
+        if (!currentUser?.id) {
+          console.log('No user ID found');
+          return;
         }
+
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${currentUser.id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setUserProfile(data);
+        setError(null);
       } catch (error) {
         console.error('Error fetching user profile:', error);
+        setError('Failed to load user profile');
+        // Nếu token hết hạn, chuyển về trang login
+        if (error.message.includes('401')) {
+          localStorage.clear();
+          window.location.href = '/login';
+        }
       }
     };
 
     fetchUserProfile();
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
   const getFullImageUrl = (path) => {
     if (!path) return '/default-imgs/avatar.png';

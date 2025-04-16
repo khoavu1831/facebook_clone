@@ -1,7 +1,9 @@
-import React, { useState, useEffect, memo, useRef } from 'react';
+import React, { useState, useEffect, memo, useRef, useContext, useCallback } from 'react';
 import { API_ENDPOINTS } from '../../config/api';
 import './PostList.css';
 import SharePostModal from './SharePostModal';
+import { webSocketService } from '../../services/websocket';
+import { UserContext } from '../../contexts/UserContext';
 
 // Component PostContent được memo để tránh render lại không cần thiết
 const PostContent = memo(({ post }) => {
@@ -9,14 +11,14 @@ const PostContent = memo(({ post }) => {
 
   const getFullImageUrl = (path) => {
     if (!path) return '/default-imgs/avatar.png';
-    if (path.startsWith('http')) return path;
-    return `${API_ENDPOINTS.BASE_URL}${path}`;
+    if (path.startsWith('http') || path.startsWith('blob')) return path;
+    return `${API_ENDPOINTS.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
   };
 
   const getFullMediaUrl = (path) => {
     if (!path) return null;
-    if (path.startsWith('http')) return path;
-    return `${API_ENDPOINTS.BASE_URL}${path}`;
+    if (path.startsWith('http') || path.startsWith('blob')) return path;
+    return `${API_ENDPOINTS.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
   };
 
   return (
@@ -121,13 +123,150 @@ const PostContent = memo(({ post }) => {
   );
 });
 
-// Component PostItem để render từng bài đăng, được memo
-const PostItem = memo(({ post, userData, handleLike, handleComment, handleShareClick, commentInputs, setCommentInputs, isLoading, currentUser }) => {
-  const getFullImageUrl = (path) => {
-    if (!path) return '/default-imgs/avatar.png';
-    if (path.startsWith('http')) return path;
-    return `${API_ENDPOINTS.BASE_URL}${path}`;
+const Comment = ({ comment, postId, onReply, currentUser, getFullImageUrl, depth = 0 }) => {
+  const [showReplyInput, setShowReplyInput] = useState(false);
+  const [replyContent, setReplyContent] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [showAllReplies, setShowAllReplies] = useState(false);
+
+  if (!currentUser) {
+    return null;
+  }
+
+  const MAX_VISIBLE_REPLIES = 2; // Số lượng replies hiển thị mặc định
+  const MAX_DEPTH = 6; // Giới hạn độ sâu của nested replies để tránh quá nhiều indent
+
+  const handleReply = async () => {
+    if (!replyContent.trim() || isLoading) return;
+    
+    setIsLoading(true);
+    try {
+      await onReply(postId, replyContent, comment.id);
+      setReplyContent('');
+      setShowReplyInput(false);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const displayedReplies = showAllReplies 
+    ? comment.replies 
+    : comment.replies?.slice(0, MAX_VISIBLE_REPLIES);
+
+  const hasMoreReplies = comment.replies?.length > MAX_VISIBLE_REPLIES;
+  const marginLeft = depth < MAX_DEPTH ? `${depth * 32}px` : `${MAX_DEPTH * 32}px`;
+
+  return (
+    <div className="comment-thread" style={{ marginLeft }}>
+      <div className="comment-main d-flex gap-2 mb-2">
+        <img
+          src={getFullImageUrl(comment.user?.avatar)}
+          alt="User"
+          className="rounded-circle"
+          style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+        />
+        <div className="flex-grow-1">
+          <div className="bg-light p-2 rounded comment-text">
+            <div className="fw-bold">
+              {comment.user ? `${comment.user.firstName} ${comment.user.lastName}` : 'Unknown User'}
+            </div>
+            {comment.content}
+          </div>
+          
+          <div className="comment-actions mt-1">
+            <button 
+              className="btn btn-link btn-sm p-0 text-muted me-2"
+              onClick={() => setShowReplyInput(!showReplyInput)}
+            >
+              Phản hồi
+            </button>
+            <small className="text-muted">
+              {new Date(comment.createdAt).toLocaleString()}
+            </small>
+          </div>
+
+          {showReplyInput && (
+            <div className="reply-input-container d-flex gap-2 mt-2">
+              <img
+                src={getFullImageUrl(currentUser?.avatar)}
+                alt="Current user"
+                className="rounded-circle"
+                style={{ width: '28px', height: '28px', objectFit: 'cover' }}
+                onError={(e) => {
+                  e.target.src = '/default-imgs/avatar.png';  // Fallback khi load ảnh lỗi
+                }}
+              />
+              <div className="flex-grow-1">
+                <div className="position-relative">
+                  <input
+                    type="text"
+                    className="form-control form-control-sm rounded-pill"
+                    placeholder={`Phản hồi ${comment.user?.firstName}...`}
+                    value={replyContent}
+                    onChange={(e) => setReplyContent(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
+                        e.preventDefault();
+                        handleReply();
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Hiển thị replies */}
+      {comment.replies && comment.replies.length > 0 && (
+        <div className="replies-container">
+          {!showAllReplies && hasMoreReplies && (
+            <button
+              className="btn btn-link btn-sm text-primary mb-2"
+              onClick={() => setShowAllReplies(true)}
+            >
+              Xem thêm {comment.replies.length - MAX_VISIBLE_REPLIES} phản hồi...
+            </button>
+          )}
+          
+          {displayedReplies?.map((reply, index) => (
+            <Comment
+              key={reply.id || index}
+              comment={reply}
+              postId={postId}
+              onReply={onReply}
+              currentUser={currentUser}
+              getFullImageUrl={getFullImageUrl}
+              depth={depth + 1}
+            />
+          ))}
+          
+          {showAllReplies && hasMoreReplies && (
+            <button
+              className="btn btn-link btn-sm text-primary mt-1"
+              onClick={() => setShowAllReplies(false)}
+            >
+              Ẩn bớt phản hồi
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Component PostItem để render từng bài đăng, được memo
+const PostItem = memo(({ post, currentUser, handleLike, handleComment, handleShareClick, commentInputs, setCommentInputs, isLoading }) => {
+  const getFullImageUrl = useCallback((path) => {
+    if (!path) return '/default-imgs/avatar.png';
+    if (path.startsWith('http') || path.startsWith('blob')) return path;
+    return `${API_ENDPOINTS.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+  }, []);
+
+  if (!currentUser) {
+    return null;
+  }
 
   return (
     <div key={post.id} className="card mb-3">
@@ -153,11 +292,11 @@ const PostItem = memo(({ post, userData, handleLike, handleComment, handleShareC
 
         <div className="d-flex gap-3 mb-3">
           <button
-            className={`btn btn-link like-button ${post.likes?.includes(userData.id) ? 'text-primary' : 'text-secondary'}`}
+            className={`btn btn-link like-button ${post.likes?.includes(currentUser.id) ? 'text-primary' : 'text-secondary'}`}
             onClick={() => handleLike(post.id)}
           >
             <img
-              src={post.likes?.includes(userData.id) ? "/img/icons/liked.png" : "/img/icons/like.png"}
+              src={post.likes?.includes(currentUser.id) ? "/img/icons/liked.png" : "/img/icons/like.png"}
               alt="Thích"
               className="action-icon"
             />
@@ -186,28 +325,28 @@ const PostItem = memo(({ post, userData, handleLike, handleComment, handleShareC
 
         <div className="comments-section">
           {post.comments?.map((comment, index) => (
-            <div key={index} className="d-flex gap-2 mb-2">
-              <img
-                src={getFullImageUrl(comment.user?.avatar)}
-                alt="Người dùng"
-                className="rounded-circle"
-                style={{ width: '30px', height: '30px' }}
+            !comment.parentId && (
+              <Comment
+                key={comment.id || index}
+                comment={comment}
+                postId={post.id}
+                onReply={handleComment}
+                currentUser={currentUser}
+                getFullImageUrl={getFullImageUrl}
               />
-              <div className="bg-light p-2 rounded comment-text flex-grow-1">
-                <div className="fw-bold">
-                  {comment.user ? `${comment.user.firstName} ${comment.user.lastName}` : 'Người dùng không xác định'}
-                </div>
-                {comment.content}
-              </div>
-            </div>
+            )
           ))}
-
-          <div className="d-flex gap-2 align-items-center">
+          
+          {/* Input để thêm comment mới */}
+          <div className="d-flex gap-2 align-items-center mt-3">
             <img
-              src={getFullImageUrl(currentUser?.avatar)}
-              alt="Người dùng"
+              src={currentUser?.avatar ? getFullImageUrl(currentUser.avatar) : '/default-imgs/avatar.png'}
+              alt="Current user"
               className="rounded-circle"
-              style={{ width: '30px', height: '30px' }}
+              style={{ width: '30px', height: '30px', objectFit: 'cover' }}
+              onError={(e) => {
+                e.target.src = '/default-imgs/avatar.png';
+              }}
             />
             <div className="flex-grow-1 position-relative">
               <input
@@ -221,23 +360,10 @@ const PostItem = memo(({ post, userData, handleLike, handleComment, handleShareC
                 }))}
                 onKeyPress={(e) => {
                   if (e.key === 'Enter' && !isLoading[post.id]) {
-                    handleComment(post.id);
+                    handleComment(post.id, e.target.value);
                   }
                 }}
-                disabled={isLoading[post.id]}
               />
-              <button
-                className="btn btn-link send-comment-btn"
-                onClick={() => handleComment(post.id)}
-                disabled={isLoading[post.id] || !commentInputs[post.id]?.trim()}
-                title="Gửi bình luận"
-              >
-                <img
-                  src="/img/icons/send-comment.png"
-                  alt="Gửi"
-                  className="action-icon"
-                />
-              </button>
             </div>
           </div>
         </div>
@@ -246,52 +372,33 @@ const PostItem = memo(({ post, userData, handleLike, handleComment, handleShareC
   );
 });
 
-function PostList({ posts, setPosts }) {
+const PostList = ({ posts: initialPosts, currentUser }) => {
+  const [posts, setPosts] = useState(initialPosts || []);
   const [commentInputs, setCommentInputs] = useState({});
   const [isLoading, setIsLoading] = useState({});
-  const [currentUser, setCurrentUser] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
-  const userData = JSON.parse(localStorage.getItem('userData'));
   const listRef = useRef(null);
+  const subscribedPosts = useRef(new Set()); // Track subscribed posts
 
-  // Giữ vị trí cuộn sau khi cập nhật posts
+  if (!currentUser) {
+    return <div className="alert alert-warning">Vui lòng đăng nhập để xem bài viết</div>;
+  }
+
+  // Validate posts when initialPosts changes
   useEffect(() => {
-    if (listRef.current) {
-      const scrollPosition = listRef.current.scrollTop;
-      return () => {
-        if (listRef.current) {
-          listRef.current.scrollTop = scrollPosition;
-        }
-      };
+    if (Array.isArray(initialPosts)) {
+      setPosts(initialPosts.filter(post => post && post.id));
     }
-  }, [posts]);
+  }, [initialPosts]);
 
   const handleShareSuccess = (newPost) => {
     setPosts(prevPosts => [newPost, ...prevPosts]);
   };
 
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${userData.id}`);
-        if (response.ok) {
-          const data = await response.json();
-          setCurrentUser(data);
-        }
-      } catch (error) {
-        console.error('Lỗi khi lấy thông tin người dùng:', error);
-      }
-    };
-
-    if (userData?.id) {
-      fetchUserProfile();
-    }
-  }, [userData?.id]);
-
   const handleLike = async (postId) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.POSTS}/${postId}/like`, {
+      await fetch(`${API_ENDPOINTS.POSTS}/${postId}/like`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -301,35 +408,15 @@ function PostList({ posts, setPosts }) {
           userId: JSON.parse(localStorage.getItem('userData')).id
         })
       });
-
-      if (!response.ok) throw new Error('Không thể thích bài đăng');
-
-      const updatedPost = await response.json();
-      setPosts(prev => {
-        const newPosts = [...prev];
-        const index = newPosts.findIndex(post => post.id === postId);
-        if (index !== -1) {
-          newPosts[index] = {
-            ...newPosts[index],
-            ...updatedPost,
-            user: updatedPost.user || newPosts[index].user,
-            comments: (updatedPost.comments || []).map(newComment => ({
-              ...newComment,
-              user: newComment.user || newPosts[index].comments.find(c => c.userId === newComment.userId)?.user
-            }))
-          };
-        }
-        return newPosts;
-      });
+      // Không cần setPosts vì sẽ nhận update qua WebSocket
     } catch (error) {
       console.error('Lỗi khi thích bài đăng:', error);
       alert('Không thể thích bài đăng. Vui lòng thử lại.');
     }
   };
 
-  const handleComment = async (postId) => {
-    const comment = commentInputs[postId];
-    if (!comment?.trim()) return;
+  const handleComment = async (postId, content, parentId = null) => {
+    if (!content?.trim() || isLoading[postId]) return;
 
     setIsLoading(prev => ({ ...prev, [postId]: true }));
     try {
@@ -340,23 +427,73 @@ function PostList({ posts, setPosts }) {
           'Authorization': `Bearer ${localStorage.getItem('userToken')}`
         },
         body: JSON.stringify({
-          userId: JSON.parse(localStorage.getItem('userData')).id,
-          content: comment
+          content: content,
+          parentId: parentId
         })
       });
 
-      if (!response.ok) throw new Error('Không thể thêm bình luận');
+      if (!response.ok) {
+        throw new Error('Lỗi kết nối mạng');
+      }
 
-      const updatedPost = await response.json();
-      setPosts(prev => {
-        const newPosts = [...prev];
-        const index = newPosts.findIndex(post => post.id === postId);
-        if (index !== -1) {
-          newPosts[index] = updatedPost;
+      // Thêm comment mới vào UI ngay lập tức với thông tin người dùng
+      const newComment = {
+        id: Date.now().toString(), // ID tạm thời cho đến khi WebSocket cập nhật
+        content: content,
+        createdAt: new Date().toISOString(),
+        userId: currentUser.id,
+        parentId: parentId,
+        user: {
+          id: currentUser.id,
+          firstName: currentUser.firstName,
+          lastName: currentUser.lastName,
+          avatar: currentUser.avatar
         }
-        return newPosts;
+      };
+
+      setPosts(prevPosts => {
+        return prevPosts.map(post => {
+          if (post.id === postId) {
+            if (parentId) {
+              // Xử lý trả lời comment
+              const updateReplies = (comments) => {
+                return comments.map(comment => {
+                  if (comment.id === parentId) {
+                    return {
+                      ...comment,
+                      replies: [...(comment.replies || []), newComment]
+                    };
+                  }
+                  if (comment.replies) {
+                    return {
+                      ...comment,
+                      replies: updateReplies(comment.replies)
+                    };
+                  }
+                  return comment;
+                });
+              };
+              
+              return {
+                ...post,
+                comments: updateReplies(post.comments || [])
+              };
+            } else {
+              // Xử lý comment mới
+              return {
+                ...post,
+                comments: [...(post.comments || []), newComment]
+              };
+            }
+          }
+          return post;
+        });
       });
-      setCommentInputs(prev => ({ ...prev, [postId]: '' }));
+
+      // Xóa nội dung input sau khi comment thành công
+      if (!parentId) {
+        setCommentInputs(prev => ({ ...prev, [postId]: '' }));
+      }
     } catch (error) {
       console.error('Lỗi khi bình luận:', error);
       alert('Không thể thêm bình luận. Vui lòng thử lại.');
@@ -370,28 +507,91 @@ function PostList({ posts, setPosts }) {
     setShowShareModal(true);
   };
 
+  useEffect(() => {
+    let isComponentMounted = true;
+    let retryTimeout = null;
+    
+    const setupWebSocket = async () => {
+      try {
+        await webSocketService.connect();
+        
+        if (!isComponentMounted) return;
+        
+        posts.forEach(async (post) => {
+          if (!post?.id || subscribedPosts.current.has(post.id)) return;
+          
+          subscribedPosts.current.add(post.id);
+          await webSocketService.subscribeToPost(post.id, updatedPost => {
+            if (!isComponentMounted) return;
+            
+            setPosts(prevPosts => {
+              const newPosts = [...prevPosts];
+              const index = newPosts.findIndex(p => p?.id === updatedPost.id);
+              if (index !== -1) {
+                newPosts[index] = {
+                  ...newPosts[index],
+                  ...updatedPost,
+                  user: updatedPost.user || newPosts[index].user,
+                  comments: (updatedPost.comments || []).map(comment => ({
+                    ...comment,
+                    user: comment.user || newPosts[index].comments?.find(c => c.userId === comment.userId)?.user
+                  }))
+                };
+              }
+              return newPosts;
+            });
+          });
+        });
+      } catch (error) {
+        console.error('Failed to setup WebSocket:', error);
+        if (isComponentMounted) {
+          retryTimeout = setTimeout(setupWebSocket, 5000);
+        }
+      }
+    };
+
+    if (posts?.length > 0) {
+      setupWebSocket();
+    }
+
+    return () => {
+      isComponentMounted = false;
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+      subscribedPosts.current.forEach(postId => {
+        webSocketService.unsubscribeFromPost(postId);
+      });
+      subscribedPosts.current.clear();
+      webSocketService.disconnect();
+    };
+  }, [posts]); // Consider changing this dependency if posts updates too frequently
+
   return (
     <div className="post-list-container" ref={listRef} style={{ overflowY: 'auto' }}>
-      {posts.map((post) => (
-        <PostItem
-          key={post.id}
-          post={post}
-          userData={userData}
-          handleLike={handleLike}
-          handleComment={handleComment}
-          handleShareClick={handleShareClick}
-          commentInputs={commentInputs}
-          setCommentInputs={setCommentInputs}
-          isLoading={isLoading}
-          currentUser={currentUser}
-        />
+      {Array.isArray(posts) && posts.map((post) => (
+        post && post.id ? (
+          <PostItem
+            key={post.id}
+            post={post}
+            currentUser={currentUser}
+            handleLike={handleLike}
+            handleComment={handleComment}
+            handleShareClick={handleShareClick}
+            commentInputs={commentInputs}
+            setCommentInputs={setCommentInputs}
+            isLoading={isLoading}
+          />
+        ) : null
       ))}
-      <SharePostModal
-        show={showShareModal}
-        onHide={() => setShowShareModal(false)}
-        post={selectedPost}
-        onShareSuccess={handleShareSuccess}
-      />
+      {showShareModal && selectedPost && (
+        <SharePostModal
+          show={showShareModal}
+          onHide={() => setShowShareModal(false)}
+          post={selectedPost}
+          onShareSuccess={handleShareSuccess}
+        />
+      )}
     </div>
   );
 }

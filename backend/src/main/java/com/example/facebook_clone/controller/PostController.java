@@ -5,9 +5,12 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,6 +29,7 @@ import com.example.facebook_clone.model.User;
 import com.example.facebook_clone.repository.PostRepository;
 import com.example.facebook_clone.repository.UserRepository;
 import com.example.facebook_clone.service.FileStorageService;
+import com.example.facebook_clone.service.UserService;
 
 @RestController
 @RequestMapping("/api/posts")
@@ -39,6 +43,16 @@ public class PostController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
+
+    // Thêm UserService
+    @Autowired
+    private UserService userService;
+
+    @Value("${app.base-url:http://localhost:8080}")
+    private String baseUrl;
 
     @PostMapping
     public ResponseEntity<?> createPost(
@@ -56,13 +70,12 @@ public class PostController {
             List<String> imageUrls = new ArrayList<>();
             for (MultipartFile image : images) {
                 String fileName = fileStorageService.storeFile(image);
-                // Lưu đường dẫn tương đối
                 imageUrls.add("/uploads/" + fileName);
             }
             post.setImages(imageUrls);
         }
 
-        // Xử lý videos tương tự
+        // Xử lý videos
         if (videos != null && videos.length > 0) {
             List<String> videoUrls = new ArrayList<>();
             for (MultipartFile video : videos) {
@@ -74,7 +87,7 @@ public class PostController {
 
         Post savedPost = postRepository.save(post);
         
-        // Populate user information before returning
+        // Populate user information
         Optional<User> userOptional = userRepository.findById(userId);
         userOptional.ifPresent(savedPost::setUser);
 
@@ -82,19 +95,13 @@ public class PostController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getPosts(@RequestParam(required = false) String userId) {
-        List<Post> posts;
-        if (userId != null) {
-            posts = postRepository.findByUserIdOrderByCreatedAtDesc(userId);
-        } else {
-            posts = postRepository.findAllByOrderByCreatedAtDesc();
-        }
-
-        // Populate user information for all posts
-        for (Post post : posts) {
-            populatePostData(post);
-        }
-
+    public ResponseEntity<List<Post>> getAllPosts() {
+        List<Post> posts = postRepository.findAll();
+        posts.forEach(post -> {
+            // Populate user information
+            Optional<User> userOptional = userRepository.findById(post.getUserId());
+            userOptional.ifPresent(post::setUser);
+        });
         return ResponseEntity.ok(posts);
     }
 
@@ -132,11 +139,12 @@ public class PostController {
     @PostMapping("/{postId}/like")
     public ResponseEntity<?> likePost(@PathVariable String postId, @RequestBody Map<String, String> request) {
         try {
-            String userId = request.get("userId");
             Post post = postRepository.findById(postId)
                     .orElseThrow(() -> new RuntimeException("Post not found"));
-
-            List<String> likes = post.getLikes();
+            
+            // Update likes
+            String userId = request.get("userId");
+            List<String> likes = new ArrayList<>(post.getLikes());
             if (likes.contains(userId)) {
                 likes.remove(userId);
             } else {
@@ -144,39 +152,84 @@ public class PostController {
             }
             post.setLikes(likes);
 
+            // Save and populate
             Post savedPost = postRepository.save(post);
-            // Populate full post data before returning
             populatePostData(savedPost);
+            
+            // Send WebSocket update
+            System.out.println("Sending WebSocket update for post: " + postId);
+            messagingTemplate.convertAndSend("/topic/posts/" + postId, savedPost);
+            
             return ResponseEntity.ok(savedPost);
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-    @PostMapping("/{postId}/comments") // Thay đổi từ "comment" thành "comments"
+    @PostMapping("/{postId}/comments")
     public ResponseEntity<?> addComment(@PathVariable String postId, @RequestBody CommentRequest request) {
         try {
             Post post = postRepository.findById(postId)
                     .orElseThrow(() -> new RuntimeException("Post not found"));
 
             Comment comment = new Comment();
+            comment.setId(UUID.randomUUID().toString());
             comment.setUserId(request.getUserId());
             comment.setContent(request.getContent());
             comment.setCreatedAt(new Date());
 
-            List<Comment> comments = post.getComments();
-            if (comments == null) {
-                comments = new ArrayList<>();
+            // Xử lý reply comment
+            if (request.getParentId() != null && !request.getParentId().isEmpty()) {
+                Comment parentComment = findCommentById(post.getComments(), request.getParentId());
+                if (parentComment == null) {
+                    return ResponseEntity.badRequest().body("Parent comment not found");
+                }
+                
+                comment.setParentId(request.getParentId());
+                if (parentComment.getReplies() == null) {
+                    parentComment.setReplies(new ArrayList<>());
+                }
+                parentComment.getReplies().add(comment);
+            } else {
+                if (post.getComments() == null) {
+                    post.setComments(new ArrayList<>());
+                }
+                post.getComments().add(comment);
             }
-            comments.add(comment);
-            post.setComments(comments);
+
+            // Populate user data
+            Optional<User> userOptional = userRepository.findById(request.getUserId());
+            userOptional.ifPresent(comment::setUser);
 
             Post savedPost = postRepository.save(post);
-            // Populate full post data before returning
             populatePostData(savedPost);
+            
+            // Send WebSocket update
+            messagingTemplate.convertAndSend("/topic/posts/" + postId, savedPost);
+            
             return ResponseEntity.ok(savedPost);
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    private Comment findCommentById(List<Comment> comments, String commentId) {
+        if (comments == null) return null;
+        
+        for (Comment comment : comments) {
+            if (comment.getId().equals(commentId)) {
+                return comment;
+            }
+            // Check in replies
+            if (comment.getReplies() != null) {
+                Comment found = findCommentById(comment.getReplies(), commentId);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     @PostMapping("/share")

@@ -1,6 +1,6 @@
 import React, { useState, memo } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
-import { API_ENDPOINTS } from '../../config/config';
+import { API_ENDPOINTS } from '../../config/api';
 
 const SharePostModal = memo(({ show, onHide, post, onShareSuccess }) => {
   const [shareContent, setShareContent] = useState('');
