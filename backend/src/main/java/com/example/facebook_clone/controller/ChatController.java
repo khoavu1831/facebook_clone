@@ -24,7 +24,7 @@ public class ChatController {
 
     @PostMapping
     public ResponseEntity<?> sendMessage(@RequestBody ChatRequest request) {
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="
                 + geminiApiKey;
 
         HttpHeaders headers = new HttpHeaders();
