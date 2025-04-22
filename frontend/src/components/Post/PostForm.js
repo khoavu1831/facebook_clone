@@ -9,7 +9,7 @@ function PostForm({ onAddPost }) {
   const [isLoading, setIsLoading] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [error, setError] = useState(null);
-  
+
   const currentUser = JSON.parse(localStorage.getItem('userData'));
 
   useEffect(() => {
@@ -29,7 +29,7 @@ function PostForm({ onAddPost }) {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         setUserProfile(data);
         setError(null);
@@ -64,13 +64,13 @@ function PostForm({ onAddPost }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!content.trim() && !media) return;
-    
+
     setIsLoading(true);
     try {
       const formData = new FormData();
       formData.append('content', content);
       formData.append('userId', currentUser.id);
-      
+
       if (media) {
         if (media.type.includes('image')) {
           formData.append('images', media);
@@ -92,7 +92,7 @@ function PostForm({ onAddPost }) {
       }
 
       const newPost = await response.json();
-      
+
       if (!newPost.user) {
         newPost.user = {
           id: currentUser.id,
@@ -103,18 +103,18 @@ function PostForm({ onAddPost }) {
       }
 
       if (newPost.images) {
-        newPost.images = newPost.images.map(image => 
+        newPost.images = newPost.images.map(image =>
           image.startsWith('http') ? image : `${API_ENDPOINTS.BASE_URL}${image}`
         );
       }
       if (newPost.videos) {
-        newPost.videos = newPost.videos.map(video => 
+        newPost.videos = newPost.videos.map(video =>
           video.startsWith('http') ? video : `${API_ENDPOINTS.BASE_URL}${video}`
         );
       }
-      
+
       onAddPost(newPost);
-      
+
       setContent('');
       setMedia(null);
       setMediaPreview(null);
@@ -141,6 +141,9 @@ function PostForm({ onAddPost }) {
             alt="User"
             className="rounded-circle"
             style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+            onError={(e) => {
+              e.target.src = '/default-imgs/avatar.png';
+            }}
           />
           <input
             type="text"
@@ -153,18 +156,18 @@ function PostForm({ onAddPost }) {
         {mediaPreview && (
           <div className="mb-3 text-center">
             {media?.type.includes('video') ? (
-              <video 
-                src={mediaPreview} 
-                controls 
-                className="img-fluid rounded" 
-                style={{ maxWidth: '300px', display: 'block', margin: '0 auto' }} 
+              <video
+                src={mediaPreview}
+                controls
+                className="img-fluid rounded"
+                style={{ maxWidth: '300px', display: 'block', margin: '0 auto' }}
               />
             ) : (
-              <img 
-                src={mediaPreview} 
-                alt="Preview" 
-                className="img-fluid rounded" 
-                style={{ maxWidth: '300px', display: 'block', margin: '0 auto' }} 
+              <img
+                src={mediaPreview}
+                alt="Preview"
+                className="img-fluid rounded"
+                style={{ maxWidth: '300px', display: 'block', margin: '0 auto' }}
               />
             )}
           </div>
@@ -201,8 +204,8 @@ function PostForm({ onAddPost }) {
               Cancel
             </button>
           )}
-          <button 
-            className="btn btn-primary post-button" 
+          <button
+            className="btn btn-primary post-button"
             onClick={handleSubmit}
             disabled={isLoading || (!content.trim() && !media)}
           >

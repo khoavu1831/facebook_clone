@@ -36,116 +36,160 @@ public class FriendController {
 
     @PostMapping("/request")
     public ResponseEntity<?> sendFriendRequest(@RequestBody Map<String, String> request) {
-        String userId = request.get("userId");
-        String friendId = request.get("friendId");
+        try {
+            String userId = request.get("userId");
+            String friendId = request.get("friendId");
 
-        Friend existingRequest = friendRepository.findByUserIdAndFriendId(userId, friendId);
-        if (existingRequest != null) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Friend request already exists"));
+            if (userId == null || friendId == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "userId and friendId are required"));
+            }
+
+            Friend existingRequest = friendRepository.findByUserIdAndFriendId(userId, friendId);
+            if (existingRequest != null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Friend request already exists"));
+            }
+
+            Friend friendRequest = new Friend();
+            friendRequest.setUserId(userId);
+            friendRequest.setFriendId(friendId);
+            friendRequest.setStatus("PENDING");
+
+            Friend savedRequest = friendRepository.save(friendRequest);
+            return ResponseEntity.ok(savedRequest);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
-
-        Friend friendRequest = new Friend();
-        friendRequest.setUserId(userId);
-        friendRequest.setFriendId(friendId);
-        friendRequest.setStatus("PENDING");
-        
-        Friend savedRequest = friendRepository.save(friendRequest);
-        return ResponseEntity.ok(savedRequest);
     }
 
     @PostMapping("/respond")
     public ResponseEntity<?> respondToFriendRequest(@RequestBody Map<String, String> request) {
-        String requestId = request.get("requestId");
-        String response = request.get("response"); // "ACCEPTED" or "REJECTED"
+        try {
+            String requestId = request.get("requestId");
+            String response = request.get("response"); // "ACCEPTED" or "REJECTED"
 
-        Friend friendRequest = friendRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Friend request not found"));
+            if (requestId == null || response == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "requestId and response are required"));
+            }
 
-        friendRequest.setStatus(response);
-        Friend savedRequest = friendRepository.save(friendRequest);
+            if (!"ACCEPTED".equals(response) && !"REJECTED".equals(response)) {
+                return ResponseEntity.badRequest().body(Map.of("message", "response must be ACCEPTED or REJECTED"));
+            }
 
-        // Nếu chấp nhận lời mời kết bạn, tạo thêm một bản ghi Friend mới 
-        // để thể hiện mối quan hệ hai chiều
-        if ("ACCEPTED".equals(response)) {
-            Friend reverseRequest = new Friend();
-            reverseRequest.setUserId(friendRequest.getFriendId());  // Đảo ngược userId và friendId
-            reverseRequest.setFriendId(friendRequest.getUserId());
-            reverseRequest.setStatus("ACCEPTED");
-            friendRepository.save(reverseRequest);
+            Friend friendRequest = friendRepository.findById(requestId)
+                    .orElseThrow(() -> new RuntimeException("Friend request not found"));
+
+            friendRequest.setStatus(response);
+            Friend savedRequest = friendRepository.save(friendRequest);
+
+            // Nếu chấp nhận lời mời kết bạn, tạo thêm một bản ghi Friend mới
+            // để thể hiện mối quan hệ hai chiều
+            if ("ACCEPTED".equals(response)) {
+                Friend reverseRequest = new Friend();
+                reverseRequest.setUserId(friendRequest.getFriendId());  // Đảo ngược userId và friendId
+                reverseRequest.setFriendId(friendRequest.getUserId());
+                reverseRequest.setStatus("ACCEPTED");
+                friendRepository.save(reverseRequest);
+            }
+
+            return ResponseEntity.ok(savedRequest);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
-
-        return ResponseEntity.ok(savedRequest);
     }
 
     @DeleteMapping("/{userId}/{friendId}")
     public ResponseEntity<?> unfriend(@PathVariable String userId, @PathVariable String friendId) {
-        // Xóa mối quan hệ theo cả hai chiều
-        Friend friendship1 = friendRepository.findByUserIdAndFriendId(userId, friendId);
-        Friend friendship2 = friendRepository.findByUserIdAndFriendId(friendId, userId);
-        
-        if (friendship1 != null) {
-            friendRepository.delete(friendship1);
+        try {
+            // Xóa mối quan hệ theo cả hai chiều
+            // Sử dụng findAll thay vì findOne để tránh lỗi khi có nhiều bản ghi trùng lặp
+            List<Friend> friendships1 = friendRepository.findAllByUserIdAndFriendId(userId, friendId);
+            List<Friend> friendships2 = friendRepository.findAllByUserIdAndFriendId(friendId, userId);
+
+            // Xóa tất cả các bản ghi tìm thấy
+            if (!friendships1.isEmpty()) {
+                friendRepository.deleteAll(friendships1);
+            }
+            if (!friendships2.isEmpty()) {
+                friendRepository.deleteAll(friendships2);
+            }
+
+            return ResponseEntity.ok(Map.of("message", "Unfriended successfully"));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
-        if (friendship2 != null) {
-            friendRepository.delete(friendship2);
-        }
-        
-        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/list/{userId}")
     public ResponseEntity<?> getFriendsList(@PathVariable String userId) {
-        // Chỉ lấy các mối quan hệ có trạng thái ACCEPTED
-        List<Friend> friends = friendRepository.findByUserIdAndStatus(userId, "ACCEPTED");
-        
-        List<String> friendIds = friends.stream()
-                .map(Friend::getFriendId)
-                .collect(Collectors.toList());
+        try {
+            // Chỉ lấy các mối quan hệ có trạng thái ACCEPTED
+            List<Friend> friends = friendRepository.findByUserIdAndStatus(userId, "ACCEPTED");
 
-        List<User> friendUsers = userRepository.findAllById(friendIds);
-        
-        return ResponseEntity.ok(friendUsers);
+            List<String> friendIds = friends.stream()
+                    .map(Friend::getFriendId)
+                    .collect(Collectors.toList());
+
+            List<User> friendUsers = userRepository.findAllById(friendIds);
+
+            return ResponseEntity.ok(friendUsers);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @GetMapping("/requests/{userId}")
     public ResponseEntity<?> getPendingRequests(@PathVariable String userId) {
-        List<Friend> pendingRequests = friendRepository.findByFriendIdAndStatus(userId, "PENDING");
-        
-        // Tạo map để lưu thông tin user và request id
-        List<Map<String, Object>> result = new ArrayList<>();
-        
-        for (Friend request : pendingRequests) {
-            User requestUser = userRepository.findById(request.getUserId()).orElse(null);
-            if (requestUser != null) {
-                Map<String, Object> requestInfo = new HashMap<>();
-                requestInfo.put("requestId", request.getId());
-                requestInfo.put("user", requestUser);
-                result.add(requestInfo);
+        try {
+            List<Friend> pendingRequests = friendRepository.findByFriendIdAndStatus(userId, "PENDING");
+
+            // Tạo map để lưu thông tin user và request id
+            List<Map<String, Object>> result = new ArrayList<>();
+
+            for (Friend request : pendingRequests) {
+                User requestUser = userRepository.findById(request.getUserId()).orElse(null);
+                if (requestUser != null) {
+                    Map<String, Object> requestInfo = new HashMap<>();
+                    requestInfo.put("requestId", request.getId());
+                    requestInfo.put("user", requestUser);
+                    result.add(requestInfo);
+                }
             }
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
-        
-        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/suggestions/{userId}")
     public ResponseEntity<?> getFriendSuggestions(@PathVariable String userId) {
-        // Lấy danh sách bạn bè hiện tại
-        List<Friend> friends = friendRepository.findByUserIdOrFriendIdAndStatus(userId, userId, "ACCEPTED");
-        Set<String> friendIds = friends.stream()
-                .map(friend -> friend.getUserId().equals(userId) ? friend.getFriendId() : friend.getUserId())
-                .collect(Collectors.toSet());
-        
-        // Thêm userId vào set để loại trừ
-        friendIds.add(userId);
+        try {
+            // Lấy danh sách bạn bè hiện tại
+            List<Friend> friends = friendRepository.findByUserIdOrFriendIdAndStatus(userId, userId, "ACCEPTED");
+            Set<String> friendIds = friends.stream()
+                    .map(friend -> friend.getUserId().equals(userId) ? friend.getFriendId() : friend.getUserId())
+                    .collect(Collectors.toSet());
 
-        // Lấy tất cả user trừ những người đã là bạn
-        List<User> allUsers = userRepository.findAll();
-        List<User> suggestions = allUsers.stream()
-                .filter(user -> !friendIds.contains(user.getId()))
-                .limit(10)
-                .collect(Collectors.toList());
+            // Thêm userId vào set để loại trừ
+            friendIds.add(userId);
 
-        return ResponseEntity.ok(suggestions);
+            // Lấy tất cả user trừ những người đã là bạn
+            List<User> allUsers = userRepository.findAll();
+            List<User> suggestions = allUsers.stream()
+                    .filter(user -> !friendIds.contains(user.getId()))
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(suggestions);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
     }
 }
 

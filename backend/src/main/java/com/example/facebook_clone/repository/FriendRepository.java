@@ -9,4 +9,5 @@ public interface FriendRepository extends MongoRepository<Friend, String> {
     List<Friend> findByFriendIdAndStatus(String friendId, String status);
     Friend findByUserIdAndFriendId(String userId, String friendId);
     List<Friend> findByUserIdOrFriendIdAndStatus(String userId, String friendId, String status);
+    List<Friend> findAllByUserIdAndFriendId(String userId, String friendId);
 }

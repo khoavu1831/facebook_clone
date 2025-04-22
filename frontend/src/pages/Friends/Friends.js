@@ -95,13 +95,17 @@ function Friends() {
         body
       });
 
-      if (!response.ok) throw new Error('Action failed');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error response:', errorData);
+        throw new Error(errorData.error || 'Action failed');
+      }
 
       // Refresh data after action
       fetchData();
     } catch (error) {
       console.error('Error:', error);
-      alert('Failed to perform action. Please try again.');
+      alert(`Failed to perform action: ${error.message}. Please try again.`);
     }
   };
 

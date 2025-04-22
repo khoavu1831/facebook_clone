@@ -1,9 +1,8 @@
-import React, { useState, useEffect, memo, useRef, useContext, useCallback } from 'react';
+import React, { useState, useEffect, memo, useRef, useCallback } from 'react';
 import { API_ENDPOINTS } from '../../config/api';
 import './PostList.css';
 import SharePostModal from './SharePostModal';
 import { webSocketService } from '../../services/websocket';
-import { UserContext } from '../../contexts/UserContext';
 
 // Component PostContent được memo để tránh render lại không cần thiết
 const PostContent = memo(({ post }) => {
@@ -123,7 +122,7 @@ const PostContent = memo(({ post }) => {
   );
 });
 
-const Comment = ({ comment, postId, onReply, currentUser, getFullImageUrl, depth = 0 }) => {
+const Comment = ({ comment, postId, onReply, currentUser, userProfile, getFullImageUrl, depth = 0 }) => {
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -138,7 +137,7 @@ const Comment = ({ comment, postId, onReply, currentUser, getFullImageUrl, depth
 
   const handleReply = async () => {
     if (!replyContent.trim() || isLoading) return;
-    
+
     setIsLoading(true);
     try {
       await onReply(postId, replyContent, comment.id);
@@ -149,8 +148,8 @@ const Comment = ({ comment, postId, onReply, currentUser, getFullImageUrl, depth
     }
   };
 
-  const displayedReplies = showAllReplies 
-    ? comment.replies 
+  const displayedReplies = showAllReplies
+    ? comment.replies
     : comment.replies?.slice(0, MAX_VISIBLE_REPLIES);
 
   const hasMoreReplies = comment.replies?.length > MAX_VISIBLE_REPLIES;
@@ -172,9 +171,9 @@ const Comment = ({ comment, postId, onReply, currentUser, getFullImageUrl, depth
             </div>
             {comment.content}
           </div>
-          
+
           <div className="comment-actions mt-1">
-            <button 
+            <button
               className="btn btn-link btn-sm p-0 text-muted me-2"
               onClick={() => setShowReplyInput(!showReplyInput)}
             >
@@ -188,7 +187,7 @@ const Comment = ({ comment, postId, onReply, currentUser, getFullImageUrl, depth
           {showReplyInput && (
             <div className="reply-input-container d-flex gap-2 mt-2">
               <img
-                src={getFullImageUrl(currentUser?.avatar)}
+                src={userProfile?.avatar ? getFullImageUrl(userProfile.avatar) : '/default-imgs/avatar.png'}
                 alt="Current user"
                 className="rounded-circle"
                 style={{ width: '28px', height: '28px', objectFit: 'cover' }}
@@ -204,7 +203,7 @@ const Comment = ({ comment, postId, onReply, currentUser, getFullImageUrl, depth
                     placeholder={`Phản hồi ${comment.user?.firstName}...`}
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
-                    onKeyPress={(e) => {
+                    onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
                         e.preventDefault();
                         handleReply();
@@ -229,7 +228,7 @@ const Comment = ({ comment, postId, onReply, currentUser, getFullImageUrl, depth
               Xem thêm {comment.replies.length - MAX_VISIBLE_REPLIES} phản hồi...
             </button>
           )}
-          
+
           {displayedReplies?.map((reply, index) => (
             <Comment
               key={reply.id || index}
@@ -237,11 +236,12 @@ const Comment = ({ comment, postId, onReply, currentUser, getFullImageUrl, depth
               postId={postId}
               onReply={onReply}
               currentUser={currentUser}
+              userProfile={userProfile}
               getFullImageUrl={getFullImageUrl}
               depth={depth + 1}
             />
           ))}
-          
+
           {showAllReplies && hasMoreReplies && (
             <button
               className="btn btn-link btn-sm text-primary mt-1"
@@ -257,7 +257,7 @@ const Comment = ({ comment, postId, onReply, currentUser, getFullImageUrl, depth
 };
 
 // Component PostItem để render từng bài đăng, được memo
-const PostItem = memo(({ post, currentUser, handleLike, handleComment, handleShareClick, commentInputs, setCommentInputs, isLoading }) => {
+const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComment, handleShareClick, commentInputs, setCommentInputs, isLoading }) => {
   const getFullImageUrl = useCallback((path) => {
     if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http') || path.startsWith('blob')) return path;
@@ -332,15 +332,16 @@ const PostItem = memo(({ post, currentUser, handleLike, handleComment, handleSha
                 postId={post.id}
                 onReply={handleComment}
                 currentUser={currentUser}
+                userProfile={userProfile}
                 getFullImageUrl={getFullImageUrl}
               />
             )
           ))}
-          
+
           {/* Input để thêm comment mới */}
           <div className="d-flex gap-2 align-items-center mt-3">
             <img
-              src={currentUser?.avatar ? getFullImageUrl(currentUser.avatar) : '/default-imgs/avatar.png'}
+              src={userProfile?.avatar ? getFullImageUrl(userProfile.avatar) : '/default-imgs/avatar.png'}
               alt="Current user"
               className="rounded-circle"
               style={{ width: '30px', height: '30px', objectFit: 'cover' }}
@@ -358,7 +359,7 @@ const PostItem = memo(({ post, currentUser, handleLike, handleComment, handleSha
                   ...prev,
                   [post.id]: e.target.value
                 }))}
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === 'Enter' && !isLoading[post.id]) {
                     handleComment(post.id, e.target.value);
                   }
@@ -378,12 +379,34 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
   const [isLoading, setIsLoading] = useState({});
   const [showShareModal, setShowShareModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const listRef = useRef(null);
   const subscribedPosts = useRef(new Set()); // Track subscribed posts
+  const [isLoggedIn, setIsLoggedIn] = useState(!!currentUser);
 
-  if (!currentUser) {
-    return <div className="alert alert-warning">Vui lòng đăng nhập để xem bài viết</div>;
-  }
+  // Fetch user profile to get avatar
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        if (!currentUser?.id) return;
+
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${currentUser.id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUserProfile(data);
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, [currentUser?.id]);
 
   // Validate posts when initialPosts changes
   useEffect(() => {
@@ -428,7 +451,8 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
         },
         body: JSON.stringify({
           content: content,
-          parentId: parentId
+          parentId: parentId,
+          userId: currentUser.id
         })
       });
 
@@ -447,7 +471,7 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
           id: currentUser.id,
           firstName: currentUser.firstName,
           lastName: currentUser.lastName,
-          avatar: currentUser.avatar
+          avatar: userProfile?.avatar || null
         }
       };
 
@@ -473,7 +497,7 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
                   return comment;
                 });
               };
-              
+
               return {
                 ...post,
                 comments: updateReplies(post.comments || [])
@@ -507,41 +531,45 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
     setShowShareModal(true);
   };
 
+  // WebSocket setup for real-time updates
   useEffect(() => {
     let isComponentMounted = true;
     let retryTimeout = null;
-    
+    const currentSubscribedPosts = subscribedPosts.current;
+
     const setupWebSocket = async () => {
       try {
         await webSocketService.connect();
-        
+
         if (!isComponentMounted) return;
-        
-        posts.forEach(async (post) => {
-          if (!post?.id || subscribedPosts.current.has(post.id)) return;
-          
-          subscribedPosts.current.add(post.id);
-          await webSocketService.subscribeToPost(post.id, updatedPost => {
-            if (!isComponentMounted) return;
-            
-            setPosts(prevPosts => {
-              const newPosts = [...prevPosts];
-              const index = newPosts.findIndex(p => p?.id === updatedPost.id);
-              if (index !== -1) {
-                newPosts[index] = {
-                  ...newPosts[index],
-                  ...updatedPost,
-                  user: updatedPost.user || newPosts[index].user,
-                  comments: (updatedPost.comments || []).map(comment => ({
-                    ...comment,
-                    user: comment.user || newPosts[index].comments?.find(c => c.userId === comment.userId)?.user
-                  }))
-                };
-              }
-              return newPosts;
+
+        if (posts && posts.length > 0) {
+          posts.forEach(async (post) => {
+            if (!post?.id || currentSubscribedPosts.has(post.id)) return;
+
+            currentSubscribedPosts.add(post.id);
+            await webSocketService.subscribeToPost(post.id, updatedPost => {
+              if (!isComponentMounted) return;
+
+              setPosts(prevPosts => {
+                const newPosts = [...prevPosts];
+                const index = newPosts.findIndex(p => p?.id === updatedPost.id);
+                if (index !== -1) {
+                  newPosts[index] = {
+                    ...newPosts[index],
+                    ...updatedPost,
+                    user: updatedPost.user || newPosts[index].user,
+                    comments: (updatedPost.comments || []).map(comment => ({
+                      ...comment,
+                      user: comment.user || newPosts[index].comments?.find(c => c.userId === comment.userId)?.user
+                    }))
+                  };
+                }
+                return newPosts;
+              });
             });
           });
-        });
+        }
       } catch (error) {
         console.error('Failed to setup WebSocket:', error);
         if (isComponentMounted) {
@@ -550,22 +578,29 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
       }
     };
 
-    if (posts?.length > 0) {
-      setupWebSocket();
-    }
+    setupWebSocket();
 
     return () => {
       isComponentMounted = false;
       if (retryTimeout) {
         clearTimeout(retryTimeout);
       }
-      subscribedPosts.current.forEach(postId => {
+      currentSubscribedPosts.forEach(postId => {
         webSocketService.unsubscribeFromPost(postId);
       });
-      subscribedPosts.current.clear();
+      currentSubscribedPosts.clear();
       webSocketService.disconnect();
     };
   }, [posts]); // Consider changing this dependency if posts updates too frequently
+
+  // Cập nhật isLoggedIn khi currentUser thay đổi
+  useEffect(() => {
+    setIsLoggedIn(!!currentUser);
+  }, [currentUser]);
+
+  if (!isLoggedIn) {
+    return <div className="alert alert-warning">Vui lòng đăng nhập để xem bài viết</div>;
+  }
 
   return (
     <div className="post-list-container" ref={listRef} style={{ overflowY: 'auto' }}>
@@ -575,6 +610,7 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
             key={post.id}
             post={post}
             currentUser={currentUser}
+            userProfile={userProfile}
             handleLike={handleLike}
             handleComment={handleComment}
             handleShareClick={handleShareClick}
