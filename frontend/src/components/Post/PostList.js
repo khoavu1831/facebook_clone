@@ -539,39 +539,57 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
 
     const setupWebSocket = async () => {
       try {
+        console.log('PostList: Setting up WebSocket connection');
         await webSocketService.connect();
 
         if (!isComponentMounted) return;
 
         if (posts && posts.length > 0) {
-          posts.forEach(async (post) => {
-            if (!post?.id || currentSubscribedPosts.has(post.id)) return;
+          // Unsubscribe from posts that are no longer in the list
+          const currentPostIds = new Set(posts.map(post => post?.id).filter(Boolean));
+          const postsToUnsubscribe = [...currentSubscribedPosts].filter(postId => !currentPostIds.has(postId));
 
-            currentSubscribedPosts.add(post.id);
-            await webSocketService.subscribeToPost(post.id, updatedPost => {
-              if (!isComponentMounted) return;
-
-              setPosts(prevPosts => {
-                const newPosts = [...prevPosts];
-                const index = newPosts.findIndex(p => p?.id === updatedPost.id);
-                if (index !== -1) {
-                  newPosts[index] = {
-                    ...newPosts[index],
-                    ...updatedPost,
-                    user: updatedPost.user || newPosts[index].user,
-                    comments: (updatedPost.comments || []).map(comment => ({
-                      ...comment,
-                      user: comment.user || newPosts[index].comments?.find(c => c.userId === comment.userId)?.user
-                    }))
-                  };
-                }
-                return newPosts;
-              });
-            });
+          postsToUnsubscribe.forEach(postId => {
+            console.log(`PostList: Unsubscribing from post ${postId} as it's no longer in the list`);
+            webSocketService.unsubscribeFromPost(postId);
+            currentSubscribedPosts.delete(postId);
           });
+
+          // Subscribe to new posts
+          for (const post of posts) {
+            if (!post?.id || currentSubscribedPosts.has(post.id)) continue;
+
+            console.log(`PostList: Subscribing to post ${post.id}`);
+            currentSubscribedPosts.add(post.id);
+            try {
+              await webSocketService.subscribeToPost(post.id, updatedPost => {
+                if (!isComponentMounted) return;
+
+                console.log(`PostList: Received update for post ${post.id}`);
+                setPosts(prevPosts => {
+                  const newPosts = [...prevPosts];
+                  const index = newPosts.findIndex(p => p?.id === updatedPost.id);
+                  if (index !== -1) {
+                    newPosts[index] = {
+                      ...newPosts[index],
+                      ...updatedPost,
+                      user: updatedPost.user || newPosts[index].user,
+                      comments: (updatedPost.comments || []).map(comment => ({
+                        ...comment,
+                        user: comment.user || newPosts[index].comments?.find(c => c.userId === comment.userId)?.user
+                      }))
+                    };
+                  }
+                  return newPosts;
+                });
+              });
+            } catch (error) {
+              console.error(`PostList: Failed to subscribe to post ${post.id}:`, error);
+            }
+          }
         }
       } catch (error) {
-        console.error('Failed to setup WebSocket:', error);
+        console.error('PostList: Failed to setup WebSocket:', error);
         if (isComponentMounted) {
           retryTimeout = setTimeout(setupWebSocket, 5000);
         }
@@ -581,15 +599,21 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
     setupWebSocket();
 
     return () => {
+      console.log('PostList: Cleaning up WebSocket subscriptions');
       isComponentMounted = false;
       if (retryTimeout) {
         clearTimeout(retryTimeout);
       }
+
+      // Only unsubscribe from posts, don't disconnect the WebSocket
       currentSubscribedPosts.forEach(postId => {
+        console.log(`PostList: Unsubscribing from post ${postId} during cleanup`);
         webSocketService.unsubscribeFromPost(postId);
       });
       currentSubscribedPosts.clear();
-      webSocketService.disconnect();
+
+      // Don't disconnect the WebSocket as it might be used by other components
+      // webSocketService.disconnect();
     };
   }, [posts]); // Consider changing this dependency if posts updates too frequently
 

@@ -1,9 +1,12 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { UserProvider } from './contexts/UserContext';
+import { ToastProvider } from './context/ToastContext';
+import { ChatProvider } from './contexts/ChatContext';
 import { isUserLoggedIn } from './utils/auth';
 import Header from './components/Header';
 import ChatForm from './components/ChatForm';
+import ChatWindowsContainer from './components/Chat/ChatWindowsContainer';
 import Home from './pages/Home';
 import Profile from './pages/Profile/Profile';
 import Friends from './pages/Friends/Friends';
@@ -22,37 +25,42 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <UserProvider>
-      <Router>
-        <div className="app">
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Auth isLogin={true} />} />
-            <Route path="/register" element={<Auth isLogin={false} />} />
-            <Route path="/admin/login" element={<AdminAuth />} />
+      <ToastProvider>
+        <ChatProvider>
+          <Router>
+            <div className="app">
+              <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<Auth isLogin={true} />} />
+              <Route path="/register" element={<Auth isLogin={false} />} />
+              <Route path="/admin/login" element={<AdminAuth />} />
 
-            {/* Protected routes for regular users */}
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <>
-                    <Header />
-                    <Routes>
-                      <Route path="/" element={<Home />} />
-                      <Route path="/profile" element={<Profile />} />
-                      <Route path="/friends" element={<Friends />} />
-                    </Routes>
-                    <ChatForm />
-                  </>
-                </ProtectedRoute>
-              }
-            />
+              {/* Protected routes for regular users */}
+              <Route
+                path="/*"
+                element={
+                  <ProtectedRoute>
+                    <>
+                      <Header />
+                      <Routes>
+                        <Route path="/" element={<Home />} />
+                        <Route path="/profile" element={<Profile />} />
+                        <Route path="/friends" element={<Friends />} />
+                      </Routes>
+                      <ChatForm />
+                      <ChatWindowsContainer />
+                    </>
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Admin routes */}
-            <Route path="/admin/*" element={<Admin />} />
-          </Routes>
-        </div>
-      </Router>
+              {/* Admin routes */}
+              <Route path="/admin/*" element={<Admin />} />
+              </Routes>
+            </div>
+          </Router>
+        </ChatProvider>
+      </ToastProvider>
     </UserProvider>
   );
 }

@@ -57,10 +57,10 @@ function Auth({ isLogin = true }) {
       const age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();
       const dayDiff = today.getDate() - birthDate.getDate();
-      
+
       // Adjust age if birthday hasn't occurred this year
       const adjustedAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
-      
+
       if (adjustedAge <= 6) {
         setError('Rất tiếc, người dùng phải trên 6 tuổi.');
         return;
@@ -74,8 +74,10 @@ function Auth({ isLogin = true }) {
     }
 
     try {
+      console.log('Sending auth request to:', isLogin ? '/api/auth/login' : '/api/auth/register');
+
       const response = await fetch(
-        isLogin ? API_ENDPOINTS.LOGIN : API_ENDPOINTS.REGISTER,
+        isLogin ? '/api/auth/login' : '/api/auth/register',
         {
           method: 'POST',
           headers: {
@@ -95,8 +97,11 @@ function Auth({ isLogin = true }) {
                   gender,
                 }
           ),
+          credentials: 'include'
         }
       );
+
+      console.log('Response status:', response.status);
 
       const data = await response.json();
 

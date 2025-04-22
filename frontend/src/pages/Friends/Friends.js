@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../../config/api';
 import './Friends.css';
 
@@ -17,9 +17,8 @@ function Friends() {
   const friendsPerPage = 6;
   const currentUser = JSON.parse(localStorage.getItem('userData'));
 
-  useEffect(() => {
-    fetchData();
-  }, [activeTab]);
+  // Reference to track if component is mounted
+  const isMounted = useRef(true);
 
   const fetchData = async () => {
     try {
@@ -27,21 +26,30 @@ function Friends() {
       switch (activeTab) {
         case 'requests':
           endpoint = `${API_ENDPOINTS.BASE_URL}/api/friends/requests/${currentUser.id}`;
+          console.log('Fetching friend requests from:', endpoint);
           const requestsResponse = await fetch(endpoint);
           const requestsData = await requestsResponse.json();
+          console.log('Friend requests data:', requestsData);
           setRequests(requestsData);
           break;
         case 'friends':
           endpoint = `${API_ENDPOINTS.BASE_URL}/api/friends/list/${currentUser.id}`;
+          console.log('Fetching friends list from:', endpoint);
           const friendsResponse = await fetch(endpoint);
           const friendsData = await friendsResponse.json();
+          console.log('Friends data:', friendsData);
           setFriends(friendsData);
           break;
         case 'suggestions':
           endpoint = `${API_ENDPOINTS.BASE_URL}/api/friends/suggestions/${currentUser.id}`;
+          console.log('Fetching friend suggestions from:', endpoint);
           const suggestionsResponse = await fetch(endpoint);
           const suggestionsData = await suggestionsResponse.json();
+          console.log('Friend suggestions data:', suggestionsData);
           setSuggestions(suggestionsData);
+          break;
+        default:
+          console.log('Unknown tab:', activeTab);
           break;
       }
     } catch (error) {
@@ -49,14 +57,63 @@ function Friends() {
     }
   };
 
+
+
+  // Thêm hàm để lấy danh sách bạn bè định kỳ
+  const setupPeriodicDataFetch = () => {
+    // Lấy dữ liệu mới mỗi 10 giây
+    return setInterval(() => {
+      if (isMounted.current && currentUser?.id) {
+        console.log('Periodic data fetch in Friends component');
+        fetchData();
+      }
+    }, 10000); // 10 giây
+  };
+
+  useEffect(() => {
+    console.log('Friends component: Fetching data for tab', activeTab);
+    fetchData();
+
+    // Thiết lập lấy dữ liệu định kỳ
+    const periodicFetchInterval = setupPeriodicDataFetch();
+
+    // Cleanup function
+    return () => {
+      clearInterval(periodicFetchInterval);
+      isMounted.current = false;
+    };
+  }, [activeTab, currentUser.id]);
+
   const handleFriendAction = async (id, action) => {
     try {
       let endpoint;
       let method;
       let body;
 
+      // Cập nhật UI ngay lập tức trước khi gửi request để tạo trải nghiệm mượt mà hơn
       switch (action) {
         case 'accept':
+          // Xóa khỏi danh sách yêu cầu và thêm vào danh sách bạn bè
+          if (activeTab === 'requests') {
+            const requestToAccept = requests.find(req => req.requestId === id);
+            if (requestToAccept && requestToAccept.user) {
+              // Xóa khỏi danh sách yêu cầu
+              setRequests(prev => prev.filter(req => req.requestId !== id));
+
+              // Thêm vào danh sách bạn bè ngay lập tức
+              const newFriend = requestToAccept.user;
+              console.log('Adding new friend to friends list:', newFriend);
+
+              // Thêm vào danh sách bạn bè ngay lập tức
+              setFriends(prev => {
+                const exists = prev.some(friend => friend.id === newFriend.id);
+                if (!exists) {
+                  return [...prev, newFriend];
+                }
+                return prev;
+              });
+            }
+          }
           endpoint = `${API_ENDPOINTS.BASE_URL}/api/friends/respond`;
           method = 'POST';
           body = JSON.stringify({
@@ -64,7 +121,12 @@ function Friends() {
             response: 'ACCEPTED'
           });
           break;
+
         case 'reject':
+          // Xóa khỏi danh sách yêu cầu
+          if (activeTab === 'requests') {
+            setRequests(prev => prev.filter(req => req.requestId !== id));
+          }
           endpoint = `${API_ENDPOINTS.BASE_URL}/api/friends/respond`;
           method = 'POST';
           body = JSON.stringify({
@@ -72,11 +134,23 @@ function Friends() {
             response: 'REJECTED'
           });
           break;
+
         case 'unfriend':
+          // Xóa khỏi danh sách bạn bè
+          if (activeTab === 'friends') {
+            setFriends(prev => prev.filter(friend => friend.id !== id));
+          }
           endpoint = `${API_ENDPOINTS.BASE_URL}/api/friends/${currentUser.id}/${id}`;
           method = 'DELETE';
           break;
+
         case 'add':
+          // Đánh dấu đã gửi lời mời kết bạn
+          if (activeTab === 'suggestions') {
+            // Có thể thêm trạng thái "Đã gửi lời mời" cho người dùng này
+            // hoặc xóa khỏi danh sách gợi ý
+            setSuggestions(prev => prev.filter(user => user.id !== id));
+          }
           endpoint = `${API_ENDPOINTS.BASE_URL}/api/friends/request`;
           method = 'POST';
           body = JSON.stringify({
@@ -86,26 +160,60 @@ function Friends() {
           break;
       }
 
-      const response = await fetch(endpoint, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('userToken')}`
-        },
-        body
-      });
+      console.log(`Sending ${method} request to ${endpoint}`);
+      console.log('Request body:', body);
+      console.log('Auth token:', localStorage.getItem('userToken'));
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Error response:', errorData);
-        throw new Error(errorData.error || 'Action failed');
+      try {
+        // Gửi request API
+        const response = await fetch(endpoint, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+          },
+          body
+        });
+
+        console.log('Response status:', response.status);
+
+        // Log the full response for debugging
+        const responseText = await response.text();
+        console.log('Response text:', responseText);
+
+        // Parse the response if it's JSON
+        let responseData;
+        try {
+          responseData = JSON.parse(responseText);
+          console.log('Parsed response data:', responseData);
+        } catch (e) {
+          console.log('Response is not JSON');
+        }
+
+        if (!response.ok) {
+          throw new Error(responseData?.error || responseData?.message || 'Action failed');
+        }
+
+        console.log(`${action} action completed successfully`);
+
+        // Lấy dữ liệu mới nhất từ server sau khi thực hiện hành động
+        // để đảm bảo UI đồng bộ với server
+        setTimeout(() => {
+          console.log('Refreshing data after action');
+          fetchData();
+        }, 500); // Đợi 500ms để server có thời gian xử lý
+
+        return responseData;
+      } catch (error) {
+        console.error('Network or parsing error:', error);
+        throw error;
       }
 
-      // Refresh data after action
-      fetchData();
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error in handleFriendAction:', error);
       alert(`Failed to perform action: ${error.message}. Please try again.`);
+      // Nếu có lỗi, cập nhật lại dữ liệu để đồng bộ với server
+      fetchData();
     }
   };
 
@@ -129,7 +237,7 @@ function Friends() {
               className={`nav-link ${activeTab === 'requests' ? 'active' : ''}`}
               onClick={() => { setActiveTab('requests'); setCurrentPage(1); }}
             >
-              Yêu cầu kết bạn ({requests.length})
+              Yêu cầu kết bạn
             </button>
           </li>
           <li className="nav-item">
@@ -137,7 +245,7 @@ function Friends() {
               className={`nav-link ${activeTab === 'friends' ? 'active' : ''}`}
               onClick={() => { setActiveTab('friends'); setCurrentPage(1); }}
             >
-              Danh sách bạn bè ({friends.length})
+              Danh sách bạn bè
             </button>
           </li>
           <li className="nav-item">

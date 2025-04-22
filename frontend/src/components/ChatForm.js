@@ -29,8 +29,11 @@ function ChatForm() {
     setInput("");
 
     try {
-      const response = await axios.post("http://localhost:8080/api/chat", {
+      console.log('Sending chat message to API');
+      const response = await axios.post("/api/chat", {
         message: input,
+      }, {
+        withCredentials: true
       });
 
       const geminiMessage = { role: "assistant", content: response.data.reply };
