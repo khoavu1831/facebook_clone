@@ -7,6 +7,7 @@ class WebSocketService {
         this.stompClient = null;
         this.subscriptions = new Map();
         this.friendSubscriptions = new Map();
+        this.messageSubscriptions = new Map();
         this.connected = false;
         this.connectPromise = null;
         this.connectionAttempts = 0;
@@ -192,6 +193,14 @@ class WebSocketService {
         for (const [userId, { callback }] of friendSubscriptions) {
             await this.subscribeToFriendUpdates(userId, callback);
         }
+
+        // Resubscribe to message updates
+        const messageSubscriptions = new Map(this.messageSubscriptions);
+        this.messageSubscriptions.clear();
+
+        for (const [userId, { callback }] of messageSubscriptions) {
+            await this.subscribeToMessages(userId, callback);
+        }
     }
 
     async subscribeToPost(postId, callback) {
@@ -298,6 +307,55 @@ class WebSocketService {
         }
     }
 
+    async subscribeToMessages(userId, callback) {
+        if (!userId || !callback) {
+            console.error('Invalid userId or callback for message subscription');
+            return;
+        }
+
+        if (this.messageSubscriptions.has(userId)) {
+            console.log(`Already subscribed to messages for user: ${userId}`);
+            return;
+        }
+
+        try {
+            if (!this.connected) {
+                console.log(`WebSocket not connected, connecting for messages to user: ${userId}`);
+                await this.connect();
+            }
+
+            console.log(`Subscribing to messages for user: ${userId}`);
+            const subscription = this.stompClient.subscribe(`/topic/messages/${userId}`, message => {
+                try {
+                    const data = JSON.parse(message.body);
+                    console.log(`Received message for user ${userId}:`, data);
+                    callback(data);
+                } catch (error) {
+                    console.error('Error parsing message:', error);
+                }
+            });
+
+            console.log(`Successfully subscribed to messages for user: ${userId}`);
+            this.messageSubscriptions.set(userId, { callback, subscription });
+        } catch (error) {
+            console.error(`Failed to subscribe to messages for user ${userId}:`, error);
+            this.reconnectWithDelay();
+        }
+    }
+
+    unsubscribeFromMessages(userId) {
+        const sub = this.messageSubscriptions.get(userId);
+        if (sub && sub.subscription) {
+            try {
+                console.log(`Unsubscribing from messages for user: ${userId}`);
+                sub.subscription.unsubscribe();
+            } catch (e) {
+                console.error(`Error unsubscribing from messages for user ${userId}:`, e);
+            }
+            this.messageSubscriptions.delete(userId);
+        }
+    }
+
     disconnect() {
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
@@ -328,6 +386,18 @@ class WebSocketService {
                 }
             });
             this.friendSubscriptions.clear();
+
+            // Unsubscribe from message updates
+            this.messageSubscriptions.forEach((sub) => {
+                if (sub.subscription) {
+                    try {
+                        sub.subscription.unsubscribe();
+                    } catch (e) {
+                        console.error('Error unsubscribing from messages:', e);
+                    }
+                }
+            });
+            this.messageSubscriptions.clear();
 
             this.resetConnection();
         }

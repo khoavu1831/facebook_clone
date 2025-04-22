@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/api';
+import { useChat } from '../contexts/ChatContext';
 
 function RightSidebar() {
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(false);
+  const { openChat, unreadCounts } = useChat();
 
   // Get user data directly from localStorage
   const getUserData = () => {
@@ -176,21 +178,32 @@ function RightSidebar() {
         ) : Array.isArray(friends) && friends.length > 0 ? (
           <ul className="list-unstyled mb-0">
             {friends.map(friend => (
-              <li key={friend.id || Math.random()} className="px-2 py-2 mx-1 my-1 d-flex align-items-center gap-2 rounded-3 contact-item">
-                <div className="position-relative">
-                  <img
-                    src={getFullImageUrl(friend.avatar)}
-                    alt={`${friend.firstName || ''} ${friend.lastName || ''}`}
-                    className="rounded-circle"
-                    style={{ width: '36px', height: '36px', objectFit: 'cover' }}
-                    onError={(e) => {
-                      e.target.src = '/default-imgs/avatar.png';
-                    }}
-                  />
-                  <span className="position-absolute bg-success rounded-circle"
-                        style={{ width: '8px', height: '8px', bottom: '2px', right: '2px', border: '1px solid white' }}></span>
+              <li
+                key={friend.id || Math.random()}
+                className="px-2 py-2 mx-1 my-1 d-flex align-items-center justify-content-between rounded-3 contact-item"
+                onClick={() => openChat(friend)}
+              >
+                <div className="d-flex align-items-center gap-2">
+                  <div className="position-relative">
+                    <img
+                      src={getFullImageUrl(friend.avatar)}
+                      alt={`${friend.firstName || ''} ${friend.lastName || ''}`}
+                      className="rounded-circle"
+                      style={{ width: '36px', height: '36px', objectFit: 'cover' }}
+                      onError={(e) => {
+                        e.target.src = '/default-imgs/avatar.png';
+                      }}
+                    />
+                    <span className="position-absolute bg-success rounded-circle"
+                          style={{ width: '8px', height: '8px', bottom: '2px', right: '2px', border: '1px solid white' }}></span>
+                  </div>
+                  <span className="text-dark">{`${friend.firstName || ''} ${friend.lastName || ''}`}</span>
                 </div>
-                <span className="text-dark">{`${friend.firstName || ''} ${friend.lastName || ''}`}</span>
+                {unreadCounts[friend.id] > 0 && (
+                  <span className="badge rounded-pill bg-danger">
+                    {unreadCounts[friend.id]}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
