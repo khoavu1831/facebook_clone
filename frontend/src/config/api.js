@@ -1,9 +1,9 @@
 export const API_ENDPOINTS = {
-    BASE_URL: 'http://localhost:8080',
-    WS_URL: 'http://localhost:8080/ws',
-    LOGIN: 'http://localhost:8080/api/auth/login',
-    REGISTER: 'http://localhost:8080/api/auth/register',
-    POSTS: 'http://localhost:8080/api/posts',
-    FRIENDS: 'http://localhost:8080/api/friends',
-    PROFILE: 'http://localhost:8080/api/profile',
+    BASE_URL: '',
+    WS_URL: '/ws',
+    LOGIN: '/api/auth/login',
+    REGISTER: '/api/auth/register',
+    POSTS: '/api/posts',
+    FRIENDS: '/api/friends',
+    PROFILE: '/api/profile',
 };
