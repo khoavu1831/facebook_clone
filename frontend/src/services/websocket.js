@@ -17,13 +17,19 @@ class WebSocketService {
     }
 
     async connect() {
+        // If already connected, just return
         if (this.connected && this.stompClient) {
+            console.log('WebSocket already connected, reusing connection');
             return Promise.resolve();
         }
 
+        // If connection is in progress, return the existing promise
         if (this.connectPromise) {
+            console.log('WebSocket connection in progress, waiting for it to complete');
             return this.connectPromise;
         }
+
+        console.log('Starting new WebSocket connection');
 
         this.connectPromise = new Promise((resolve, reject) => {
             try {
@@ -142,10 +148,30 @@ class WebSocketService {
 
         if (this.stompClient) {
             try {
+                // Save current subscriptions before deactivating
+                const currentSubscriptions = new Map(this.subscriptions);
+                const currentFriendSubscriptions = new Map(this.friendSubscriptions);
+                const currentMessageSubscriptions = new Map(this.messageSubscriptions);
+
+                // Clear subscriptions maps before deactivating
+                this.subscriptions.clear();
+                this.friendSubscriptions.clear();
+                this.messageSubscriptions.clear();
+
+                // Deactivate client
                 this.stompClient.deactivate();
                 console.log('STOMP client deactivated');
+
+                // Restore subscription maps for resubscribing later
+                this.subscriptions = currentSubscriptions;
+                this.friendSubscriptions = currentFriendSubscriptions;
+                this.messageSubscriptions = currentMessageSubscriptions;
             } catch (e) {
                 console.error('Error deactivating STOMP client:', e);
+                // Clear subscriptions on error
+                this.subscriptions.clear();
+                this.friendSubscriptions.clear();
+                this.messageSubscriptions.clear();
             } finally {
                 this.stompClient = null;
             }
@@ -178,29 +204,60 @@ class WebSocketService {
     }
 
     async resubscribeAll() {
+        console.log('Resubscribing to all topics');
+
         // Resubscribe to posts
         const subscriptions = new Map(this.subscriptions);
+        const tempSubscriptions = new Map(this.subscriptions);
         this.subscriptions.clear();
 
+        console.log(`Resubscribing to ${subscriptions.size} posts`);
         for (const [postId, { callback }] of subscriptions) {
-            await this.subscribeToPost(postId, callback);
+            try {
+                await this.subscribeToPost(postId, callback);
+                console.log(`Successfully resubscribed to post: ${postId}`);
+            } catch (error) {
+                console.error(`Failed to resubscribe to post ${postId}:`, error);
+                // Restore the original subscription in the map
+                this.subscriptions.set(postId, tempSubscriptions.get(postId));
+            }
         }
 
         // Resubscribe to friend updates
         const friendSubscriptions = new Map(this.friendSubscriptions);
+        const tempFriendSubscriptions = new Map(this.friendSubscriptions);
         this.friendSubscriptions.clear();
 
+        console.log(`Resubscribing to ${friendSubscriptions.size} friend updates`);
         for (const [userId, { callback }] of friendSubscriptions) {
-            await this.subscribeToFriendUpdates(userId, callback);
+            try {
+                await this.subscribeToFriendUpdates(userId, callback);
+                console.log(`Successfully resubscribed to friend updates for user: ${userId}`);
+            } catch (error) {
+                console.error(`Failed to resubscribe to friend updates for user ${userId}:`, error);
+                // Restore the original subscription in the map
+                this.friendSubscriptions.set(userId, tempFriendSubscriptions.get(userId));
+            }
         }
 
         // Resubscribe to message updates
         const messageSubscriptions = new Map(this.messageSubscriptions);
+        const tempMessageSubscriptions = new Map(this.messageSubscriptions);
         this.messageSubscriptions.clear();
 
+        console.log(`Resubscribing to ${messageSubscriptions.size} message updates`);
         for (const [userId, { callback }] of messageSubscriptions) {
-            await this.subscribeToMessages(userId, callback);
+            try {
+                await this.subscribeToMessages(userId, callback);
+                console.log(`Successfully resubscribed to messages for user: ${userId}`);
+            } catch (error) {
+                console.error(`Failed to resubscribe to messages for user ${userId}:`, error);
+                // Restore the original subscription in the map
+                this.messageSubscriptions.set(userId, tempMessageSubscriptions.get(userId));
+            }
         }
+
+        console.log('Resubscription complete');
     }
 
     async subscribeToPost(postId, callback) {
