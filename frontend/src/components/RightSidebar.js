@@ -1,32 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/api';
 
 function RightSidebar() {
   const [friends, setFriends] = useState([]);
-  const currentUser = JSON.parse(localStorage.getItem('userData'));
 
-  useEffect(() => {
-    const fetchFriends = async () => {
-      try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/friends/list/${currentUser.id}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('userToken')}`
-          }
-        });
+  // Get user data directly from localStorage
+  const getUserData = () => {
+    try {
+      const userData = localStorage.getItem('userData');
+      return userData ? JSON.parse(userData) : null;
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      return null;
+    }
+  };
 
-        if (response.ok) {
-          const data = await response.json();
+  const user = getUserData();
+
+  // Reference to track if component is mounted
+  const isMounted = useRef(true);
+
+  const fetchFriends = async () => {
+    try {
+      if (!user?.id) {
+        return;
+      }
+
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/friends/list/${user.id}`);
+
+      if (isMounted.current && response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
           setFriends(data);
         }
-      } catch (error) {
-        console.error('Error fetching friends:', error);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    }
+  };
 
-    if (currentUser?.id) {
+  useEffect(() => {
+    if (user?.id) {
+      // Fetch friends when component mounts
       fetchFriends();
     }
-  }, [currentUser?.id]);
+
+    return () => {
+      isMounted.current = false;
+    };
+  }, [user?.id]);
+
+
 
   const getFullImageUrl = (path) => {
     if (!path) return '/default-imgs/avatar.png';
@@ -36,7 +60,9 @@ function RightSidebar() {
 
   return (
     <div className="col-3 p-3 position-fixed" style={{ top: '60px', right: '0', height: 'calc(100vh - 60px)', overflowY: 'auto' }}>
-      <h3 className="text-secondary mb-3">Contacts</h3>
+      <div className="mb-3">
+        <h3 className="text-secondary">Contacts</h3>
+      </div>
       <ul className="list-unstyled">
         {friends.length > 0 ? (
           friends.map(friend => (

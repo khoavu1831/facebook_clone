@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,6 +35,9 @@ public class FriendController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
+
     @PostMapping("/request")
     public ResponseEntity<?> sendFriendRequest(@RequestBody Map<String, String> request) {
         try {
@@ -55,6 +59,17 @@ public class FriendController {
             friendRequest.setStatus("PENDING");
 
             Friend savedRequest = friendRepository.save(friendRequest);
+
+            // Send WebSocket notification to the friend
+            Map<String, Object> requestInfo = new HashMap<>();
+            User requestUser = userRepository.findById(userId).orElse(null);
+            requestInfo.put("requestId", savedRequest.getId());
+            requestInfo.put("user", requestUser);
+            requestInfo.put("type", "NEW_REQUEST");
+
+            // Send to the friend's topic
+            messagingTemplate.convertAndSend("/topic/friends/" + friendId, requestInfo);
+
             return ResponseEntity.ok(savedRequest);
         } catch (Exception e) {
             e.printStackTrace();
@@ -90,6 +105,31 @@ public class FriendController {
                 reverseRequest.setFriendId(friendRequest.getUserId());
                 reverseRequest.setStatus("ACCEPTED");
                 friendRepository.save(reverseRequest);
+
+                // Get user information for both users
+                User requestUser = userRepository.findById(friendRequest.getUserId()).orElse(null);
+                User friendUser = userRepository.findById(friendRequest.getFriendId()).orElse(null);
+
+                // Send WebSocket notification to both users
+                if (requestUser != null && friendUser != null) {
+                    // Notification for the user who sent the request
+                    Map<String, Object> notificationForRequester = new HashMap<>();
+                    notificationForRequester.put("type", "REQUEST_ACCEPTED");
+                    notificationForRequester.put("friend", friendUser);
+                    messagingTemplate.convertAndSend("/topic/friends/" + friendRequest.getUserId(), notificationForRequester);
+
+                    // Notification for the user who accepted the request
+                    Map<String, Object> notificationForAccepter = new HashMap<>();
+                    notificationForAccepter.put("type", "FRIEND_ADDED");
+                    notificationForAccepter.put("friend", requestUser);
+                    messagingTemplate.convertAndSend("/topic/friends/" + friendRequest.getFriendId(), notificationForAccepter);
+                }
+            } else if ("REJECTED".equals(response)) {
+                // Notification for the user who sent the request that it was rejected
+                Map<String, Object> notification = new HashMap<>();
+                notification.put("type", "REQUEST_REJECTED");
+                notification.put("requestId", requestId);
+                messagingTemplate.convertAndSend("/topic/friends/" + friendRequest.getUserId(), notification);
             }
 
             return ResponseEntity.ok(savedRequest);
@@ -114,6 +154,15 @@ public class FriendController {
             if (!friendships2.isEmpty()) {
                 friendRepository.deleteAll(friendships2);
             }
+
+            // Send WebSocket notification to both users
+            Map<String, Object> notification = new HashMap<>();
+            notification.put("type", "UNFRIENDED");
+            notification.put("userId", userId);
+            notification.put("friendId", friendId);
+
+            messagingTemplate.convertAndSend("/topic/friends/" + userId, notification);
+            messagingTemplate.convertAndSend("/topic/friends/" + friendId, notification);
 
             return ResponseEntity.ok(Map.of("message", "Unfriended successfully"));
         } catch (Exception e) {

@@ -6,6 +6,7 @@ class WebSocketService {
     constructor() {
         this.stompClient = null;
         this.subscriptions = new Map();
+        this.friendSubscriptions = new Map();
         this.connected = false;
         this.connectPromise = null;
         this.connectionAttempts = 0;
@@ -26,18 +27,31 @@ class WebSocketService {
         this.connectPromise = new Promise((resolve, reject) => {
             try {
                 if (this.connectionAttempts >= this.maxAttempts) {
+                    console.log('Max connection attempts reached, resetting connection');
                     this.resetConnection();
+                    this.connectionAttempts = 0; // Reset attempts to allow future connections
                     reject(new Error('Max connection attempts reached'));
                     return;
                 }
 
                 this.connectionAttempts++;
+                console.log(`Connection attempt ${this.connectionAttempts} of ${this.maxAttempts}`);
+
+                // Tạo một SockJS socket mới
                 const socket = new SockJS(API_ENDPOINTS.WS_URL);
-                
+
+                // Thêm xử lý lỗi cho socket
+                socket.onerror = (error) => {
+                    console.error('SockJS socket error:', error);
+                };
+
                 this.stompClient = new Client({
                     webSocketFactory: () => socket,
                     debug: (str) => {
-                        console.log('WebSocket Debug:', str);
+                        // Chỉ log các thông báo quan trọng để tránh spam console
+                        if (str.includes('CONNECT') || str.includes('ERROR') || str.includes('DISCONNECT')) {
+                            console.log('WebSocket Debug:', str);
+                        }
                     },
                     reconnectDelay: this.reconnectDelay,
                     heartbeatIncoming: 25000,
@@ -45,7 +59,7 @@ class WebSocketService {
                     onConnect: () => {
                         console.log('WebSocket Connected Successfully');
                         this.connected = true;
-                        this.connectionAttempts = 0;
+                        this.connectionAttempts = 0; // Reset attempts on successful connection
                         this.connectPromise = null;
                         this.resubscribeAll();
                         resolve();
@@ -54,7 +68,7 @@ class WebSocketService {
                         console.log('WebSocket Disconnected');
                         this.connected = false;
                         this.connectPromise = null;
-                        
+
                         // Chỉ thử kết nối lại nếu chưa đạt số lần tối đa
                         if (this.connectionAttempts < this.maxAttempts) {
                             this.reconnectWithDelay();
@@ -62,12 +76,21 @@ class WebSocketService {
                     },
                     onStompError: (frame) => {
                         console.error('STOMP Error:', frame);
-                        this.resetConnection();
-                        reject(frame);
+                        this.connected = false;
+                        this.connectPromise = null;
+
+                        if (this.connectionAttempts < this.maxAttempts) {
+                            this.reconnectWithDelay();
+                        } else {
+                            this.resetConnection();
+                            reject(frame);
+                        }
                     },
                     onWebSocketClose: () => {
                         console.log('WebSocket Connection Closed');
                         this.connected = false;
+                        this.connectPromise = null;
+
                         if (this.connectionAttempts < this.maxAttempts) {
                             this.reconnectWithDelay();
                         }
@@ -75,17 +98,28 @@ class WebSocketService {
                     onWebSocketError: (event) => {
                         console.error('WebSocket Error:', event);
                         this.connected = false;
+                        this.connectPromise = null;
+
                         if (this.connectionAttempts < this.maxAttempts) {
                             this.reconnectWithDelay();
                         }
                     }
                 });
 
+                // Kích hoạt kết nối
+                console.log('Activating STOMP client...');
                 this.stompClient.activate();
             } catch (error) {
                 console.error('WebSocket Connection error:', error);
-                this.resetConnection();
-                reject(error);
+                this.connected = false;
+                this.connectPromise = null;
+
+                if (this.connectionAttempts < this.maxAttempts) {
+                    this.reconnectWithDelay();
+                } else {
+                    this.resetConnection();
+                    reject(error);
+                }
             }
         });
 
@@ -93,16 +127,27 @@ class WebSocketService {
     }
 
     resetConnection() {
+        console.log('Resetting WebSocket connection');
         this.connected = false;
         this.connectPromise = null;
-        this.connectionAttempts = 0;
+
+        // Không reset connectionAttempts để tránh kết nối lại vô hạn nếu đã đạt số lần tối đa
+        // this.connectionAttempts = 0;
+
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
+
         if (this.stompClient) {
             try {
                 this.stompClient.deactivate();
+                console.log('STOMP client deactivated');
             } catch (e) {
                 console.error('Error deactivating STOMP client:', e);
+            } finally {
+                this.stompClient = null;
             }
-            this.stompClient = null;
         }
     }
 
@@ -110,27 +155,48 @@ class WebSocketService {
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
         }
-        
-        const delay = Math.min(this.reconnectDelay * Math.pow(2, this.connectionAttempts - 1), 30000);
-        
+
+        // Tăng thời gian chờ theo số lần thử (exponential backoff)
+        // Nhưng giới hạn tối đa là 30 giây
+        const delay = Math.min(this.reconnectDelay * Math.pow(1.5, this.connectionAttempts - 1), 30000);
+
+        console.log(`Scheduling reconnect in ${delay}ms (Attempt ${this.connectionAttempts}/${this.maxAttempts})`);
+
         this.reconnectTimeout = setTimeout(() => {
-            console.log(`Attempting to reconnect... (Attempt ${this.connectionAttempts + 1})`);
-            this.connect().catch(console.error);
+            if (this.connectionAttempts < this.maxAttempts) {
+                console.log(`Attempting to reconnect... (Attempt ${this.connectionAttempts + 1}/${this.maxAttempts})`);
+                this.connect().catch(error => {
+                    console.error('Reconnect attempt failed:', error);
+                });
+            } else {
+                console.log('Max reconnection attempts reached, giving up');
+                // Reset connection attempts to allow future manual connections
+                this.connectionAttempts = 0;
+            }
         }, delay);
     }
 
     async resubscribeAll() {
+        // Resubscribe to posts
         const subscriptions = new Map(this.subscriptions);
         this.subscriptions.clear();
-        
+
         for (const [postId, { callback }] of subscriptions) {
             await this.subscribeToPost(postId, callback);
+        }
+
+        // Resubscribe to friend updates
+        const friendSubscriptions = new Map(this.friendSubscriptions);
+        this.friendSubscriptions.clear();
+
+        for (const [userId, { callback }] of friendSubscriptions) {
+            await this.subscribeToFriendUpdates(userId, callback);
         }
     }
 
     async subscribeToPost(postId, callback) {
         if (!postId || !callback) return;
-        
+
         if (this.subscriptions.has(postId)) {
             return;
         }
@@ -171,23 +237,98 @@ class WebSocketService {
         }
     }
 
+    async subscribeToFriendUpdates(userId, callback) {
+        if (!userId || !callback) {
+            console.error('Invalid userId or callback for friend updates subscription');
+            return;
+        }
+
+        if (this.friendSubscriptions.has(userId)) {
+            console.log(`Already subscribed to friend updates for user: ${userId}`);
+            return;
+        }
+
+        try {
+            if (!this.connected) {
+                console.log(`WebSocket not connected, connecting for user: ${userId}`);
+                await this.connect();
+            }
+
+            console.log(`Subscribing to friend updates for user: ${userId}`);
+            const subscription = this.stompClient.subscribe(`/topic/friends/${userId}`, message => {
+                try {
+                    const data = JSON.parse(message.body);
+                    console.log(`Received friend update for user ${userId}:`, data);
+                    console.log('Friend update type:', data.type);
+                    console.log('Friend update data:', data);
+
+                    // Debug: Log the callback function
+                    console.log('Callback function exists:', !!callback);
+
+                    // Call the callback with the data
+                    callback(data);
+
+                    // Debug: Log after callback
+                    console.log('Callback executed for friend update');
+                } catch (error) {
+                    console.error('Error parsing friend update message:', error);
+                }
+            });
+
+            console.log(`Successfully subscribed to friend updates for user: ${userId}`);
+            this.friendSubscriptions.set(userId, { callback, subscription });
+            console.log('Current friend subscriptions:', [...this.friendSubscriptions.keys()]);
+        } catch (error) {
+            console.error(`Failed to subscribe to friend updates for user ${userId}:`, error);
+            // Try to reconnect on subscription failure
+            this.reconnectWithDelay();
+        }
+    }
+
+    unsubscribeFromFriendUpdates(userId) {
+        const sub = this.friendSubscriptions.get(userId);
+        if (sub && sub.subscription) {
+            try {
+                console.log(`Unsubscribing from friend updates for user: ${userId}`);
+                sub.subscription.unsubscribe();
+            } catch (e) {
+                console.error(`Error unsubscribing from friend updates for user ${userId}:`, e);
+            }
+            this.friendSubscriptions.delete(userId);
+        }
+    }
+
     disconnect() {
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
         }
-        
+
         if (this.stompClient) {
             console.log('Disconnecting WebSocket');
+            // Unsubscribe from posts
             this.subscriptions.forEach((sub) => {
                 if (sub.subscription) {
                     try {
                         sub.subscription.unsubscribe();
                     } catch (e) {
-                        console.error('Error unsubscribing:', e);
+                        console.error('Error unsubscribing from post:', e);
                     }
                 }
             });
             this.subscriptions.clear();
+
+            // Unsubscribe from friend updates
+            this.friendSubscriptions.forEach((sub) => {
+                if (sub.subscription) {
+                    try {
+                        sub.subscription.unsubscribe();
+                    } catch (e) {
+                        console.error('Error unsubscribing from friend updates:', e);
+                    }
+                }
+            });
+            this.friendSubscriptions.clear();
+
             this.resetConnection();
         }
     }

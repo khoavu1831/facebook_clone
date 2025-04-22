@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { UserProvider } from './contexts/UserContext';
+import { ToastProvider } from './context/ToastContext';
 import { isUserLoggedIn } from './utils/auth';
 import Header from './components/Header';
 import ChatForm from './components/ChatForm';
@@ -22,9 +23,10 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <UserProvider>
-      <Router>
-        <div className="app">
-          <Routes>
+      <ToastProvider>
+        <Router>
+          <div className="app">
+            <Routes>
             {/* Public routes */}
             <Route path="/login" element={<Auth isLogin={true} />} />
             <Route path="/register" element={<Auth isLogin={false} />} />
@@ -50,9 +52,10 @@ function App() {
 
             {/* Admin routes */}
             <Route path="/admin/*" element={<Admin />} />
-          </Routes>
-        </div>
-      </Router>
+            </Routes>
+          </div>
+        </Router>
+      </ToastProvider>
     </UserProvider>
   );
 }
