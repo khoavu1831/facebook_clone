@@ -136,6 +136,9 @@
   margin-top: 0.5rem;
   border-left: 1px solid #dee2e6;
   padding-left: 1rem;
+  width: 100%;
+  clear: both;
+  position: relative;
 }
 
 .reply-comment {
@@ -175,6 +178,43 @@
   background-color: #f0f2f5;
   box-shadow: none;
   border: none;
+}
+
+/* Styles for view replies button */
+.view-replies-wrapper {
+  margin-left: 1rem;
+  position: relative;
+  z-index: 1;
+  display: block;
+  clear: both;
+  margin-bottom: 0.5rem;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.view-replies-btn {
+  font-size: 0.8rem;
+  font-weight: 500;
+  position: relative;
+  display: flex;
+  align-items: center;
+  color: #1877f2 !important;
+  padding: 0.25rem 0.5rem;
+}
+
+.view-replies-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.5rem;
+}
+
+.view-replies-icon i {
+  font-size: 0.9rem;
+}
+
+.view-replies-text {
+  display: inline-block;
 }
 
 /* Responsive adjustments */

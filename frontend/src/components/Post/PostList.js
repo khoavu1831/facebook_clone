@@ -132,7 +132,7 @@ const Comment = ({ comment, postId, onReply, currentUser, userProfile, getFullIm
     return null;
   }
 
-  const MAX_VISIBLE_REPLIES = 2; // Số lượng replies hiển thị mặc định
+  const MAX_VISIBLE_REPLIES = 0; // Mặc định không hiển thị phản hồi con
   const MAX_DEPTH = 6; // Giới hạn độ sâu của nested replies để tránh quá nhiều indent
 
   const handleReply = async () => {
@@ -152,7 +152,8 @@ const Comment = ({ comment, postId, onReply, currentUser, userProfile, getFullIm
     ? comment.replies
     : comment.replies?.slice(0, MAX_VISIBLE_REPLIES);
 
-  const hasMoreReplies = comment.replies?.length > MAX_VISIBLE_REPLIES;
+  // Luôn hiển thị nút "Xem thêm phản hồi" nếu có phản hồi con
+  const hasMoreReplies = comment.replies?.length > 0;
   const marginLeft = depth < MAX_DEPTH ? `${depth * 32}px` : `${MAX_DEPTH * 32}px`;
 
   return (
@@ -219,38 +220,36 @@ const Comment = ({ comment, postId, onReply, currentUser, userProfile, getFullIm
 
       {/* Hiển thị replies */}
       {comment.replies && comment.replies.length > 0 && (
-        <div className="replies-container">
-          {!showAllReplies && hasMoreReplies && (
-            <button
-              className="btn btn-link btn-sm text-primary mb-2"
-              onClick={() => setShowAllReplies(true)}
-            >
-              Xem thêm {comment.replies.length - MAX_VISIBLE_REPLIES} phản hồi...
-            </button>
+        <>
+          {!showAllReplies && (
+            <div className="view-replies-wrapper">
+              <button
+                className="btn btn-link btn-sm text-primary mb-2 view-replies-btn"
+                onClick={() => setShowAllReplies(true)}
+              >
+                <span className="view-replies-icon"><i className="bi bi-arrow-return-right"></i></span>
+                <span className="view-replies-text">Xem {comment.replies.length} phản hồi</span>
+              </button>
+            </div>
           )}
 
-          {displayedReplies?.map((reply, index) => (
-            <Comment
-              key={reply.id || index}
-              comment={reply}
-              postId={postId}
-              onReply={onReply}
-              currentUser={currentUser}
-              userProfile={userProfile}
-              getFullImageUrl={getFullImageUrl}
-              depth={depth + 1}
-            />
-          ))}
-
-          {showAllReplies && hasMoreReplies && (
-            <button
-              className="btn btn-link btn-sm text-primary mt-1"
-              onClick={() => setShowAllReplies(false)}
-            >
-              Ẩn bớt phản hồi
-            </button>
+          {showAllReplies && (
+            <div className="replies-container">
+              {displayedReplies?.map((reply, index) => (
+                <Comment
+                  key={reply.id || index}
+                  comment={reply}
+                  postId={postId}
+                  onReply={onReply}
+                  currentUser={currentUser}
+                  userProfile={userProfile}
+                  getFullImageUrl={getFullImageUrl}
+                  depth={depth + 1}
+                />
+              ))}
+            </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );

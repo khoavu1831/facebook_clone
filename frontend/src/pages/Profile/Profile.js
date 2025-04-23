@@ -19,6 +19,10 @@ function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState(null);
 
+  // Lưu trữ giá trị ban đầu để khôi phục khi hủy
+  const [originalAvatarPreview, setOriginalAvatarPreview] = useState('');
+  const [originalCoverPreview, setOriginalCoverPreview] = useState('');
+
   // Get userData from localStorage
   const userData = localStorage.getItem('userData');
   const currentUser = userData ? JSON.parse(userData) : null;
@@ -51,8 +55,15 @@ function Profile() {
         setEmail(profileData.email);
         setBio(profileData.bio || '');
         setGender(profileData.gender || '');
-        setAvatarPreview(profileData.avatar ? `${API_ENDPOINTS.BASE_URL}${profileData.avatar}` : '/default-imgs/avatar.png');
-        setCoverPreview(profileData.coverPhoto ? `${API_ENDPOINTS.BASE_URL}${profileData.coverPhoto}` : '/default-imgs/cover.jpg');
+        const avatarUrl = profileData.avatar ? `${API_ENDPOINTS.BASE_URL}${profileData.avatar}` : '/default-imgs/avatar.png';
+        const coverUrl = profileData.coverPhoto ? `${API_ENDPOINTS.BASE_URL}${profileData.coverPhoto}` : '/default-imgs/cover.jpg';
+
+        setAvatarPreview(avatarUrl);
+        setCoverPreview(coverUrl);
+
+        // Lưu trữ giá trị ban đầu
+        setOriginalAvatarPreview(avatarUrl);
+        setOriginalCoverPreview(coverUrl);
 
         // Fetch user's posts
         const postsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts?userId=${currentUser.id}`, {
@@ -86,6 +97,20 @@ function Profile() {
     }
   }, [currentUser]);
 
+  // Xử lý khi người dùng thoát ra mà không lưu
+  useEffect(() => {
+    // Khi component unmount hoặc khi isEditing thay đổi từ true sang false
+    return () => {
+      if (isEditing) {
+        // Đặt lại giá trị ban đầu nếu đang trong chế độ chỉnh sửa
+        setAvatarPreview(originalAvatarPreview);
+        setCoverPreview(originalCoverPreview);
+        setAvatar(null);
+        setCoverPhoto(null);
+      }
+    };
+  }, [isEditing, originalAvatarPreview, originalCoverPreview]);
+
   if (error) {
     return <div className="alert alert-danger m-3">{error}</div>;
   }
@@ -98,75 +123,19 @@ function Profile() {
     setPosts(prevPosts => [newPost, ...prevPosts]);
   };
 
-  const handleCoverChange = async (e) => {
+  const handleCoverChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setCoverPhoto(file);
       setCoverPreview(URL.createObjectURL(file));
-
-      const formData = new FormData();
-      formData.append('userId', currentUser.id);
-      formData.append('name', name);
-      formData.append('email', email);
-      formData.append('bio', bio);
-      formData.append('gender', gender);
-      formData.append('coverPhoto', file);
-
-      try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/update`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('userToken')}`
-          },
-          body: formData
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to update cover photo');
-        }
-
-        const updatedProfile = await response.json();
-        setCoverPreview(`${API_ENDPOINTS.BASE_URL}${updatedProfile.coverPhoto}`);
-      } catch (error) {
-        console.error('Error updating cover photo:', error);
-        setCoverPreview(coverPreview);
-      }
     }
   };
 
-  const handleAvatarChange = async (e) => {
+  const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setAvatar(file);
       setAvatarPreview(URL.createObjectURL(file));
-
-      const formData = new FormData();
-      formData.append('userId', currentUser.id);
-      formData.append('name', name);
-      formData.append('email', email);
-      formData.append('bio', bio);
-      formData.append('gender', gender);
-      formData.append('avatar', file);
-
-      try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/update`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('userToken')}`
-          },
-          body: formData
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to update avatar');
-        }
-
-        const updatedProfile = await response.json();
-        setAvatarPreview(`${API_ENDPOINTS.BASE_URL}${updatedProfile.avatar}`);
-      } catch (error) {
-        console.error('Error updating avatar:', error);
-        setAvatarPreview(avatarPreview);
-      }
     }
   };
 
@@ -195,10 +164,25 @@ function Profile() {
       }
 
       const updatedProfile = await response.json();
+
+      // Cập nhật giá trị hiển thị
       setName(updatedProfile.firstName + ' ' + updatedProfile.lastName);
       setBio(updatedProfile.bio || '');
-      setAvatarPreview(updatedProfile.avatar ? `${API_ENDPOINTS.BASE_URL}${updatedProfile.avatar}` : avatarPreview);
-      setCoverPreview(updatedProfile.coverPhoto ? `${API_ENDPOINTS.BASE_URL}${updatedProfile.coverPhoto}` : coverPreview);
+
+      const newAvatarPreview = updatedProfile.avatar ? `${API_ENDPOINTS.BASE_URL}${updatedProfile.avatar}` : avatarPreview;
+      const newCoverPreview = updatedProfile.coverPhoto ? `${API_ENDPOINTS.BASE_URL}${updatedProfile.coverPhoto}` : coverPreview;
+
+      setAvatarPreview(newAvatarPreview);
+      setCoverPreview(newCoverPreview);
+
+      // Cập nhật giá trị ban đầu sau khi lưu thành công
+      setOriginalAvatarPreview(newAvatarPreview);
+      setOriginalCoverPreview(newCoverPreview);
+
+      // Xóa các file đã chọn
+      setAvatar(null);
+      setCoverPhoto(null);
+
       setIsEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -207,9 +191,17 @@ function Profile() {
 
   const handleCancelEdit = () => {
     setIsEditing(false);
-    // Reset form fields to original values (optional, depending on your preference)
+    // Đặt lại tất cả các trường về giá trị ban đầu
     setName(currentUser.firstName + ' ' + currentUser.lastName);
     setBio(currentUser.bio || '');
+
+    // Đặt lại avatar và ảnh bìa
+    setAvatarPreview(originalAvatarPreview);
+    setCoverPreview(originalCoverPreview);
+
+    // Xóa các file đã chọn
+    setAvatar(null);
+    setCoverPhoto(null);
   };
 
   return (
@@ -326,9 +318,9 @@ function Profile() {
       <div className="profile-content">
         <PostForm onAddPost={handleAddPost} />
         {posts.length > 0 ? (
-          <PostList 
-            posts={posts} 
-            setPosts={setPosts} 
+          <PostList
+            posts={posts}
+            setPosts={setPosts}
             currentUser={currentUser}
           />
         ) : (
