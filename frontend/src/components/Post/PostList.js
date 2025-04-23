@@ -290,7 +290,7 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
   const [editPrivacy, setEditPrivacy] = useState(post.privacy || 'PUBLIC');
 
   return (
-    <div key={post.id} className="card mb-3">
+    <div id={`post-${post.id}`} key={post.id} className="card mb-3">
       <div className="card-body">
         <div className="d-flex align-items-center gap-2 mb-3">
           <img

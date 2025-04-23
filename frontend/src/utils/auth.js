@@ -18,7 +18,10 @@ export const getUserData = () => {
 export const isUserLoggedIn = () => {
   const token = localStorage.getItem('userToken');
   const userData = getUserData();
-  return !!(token && userData);
+
+  // Nếu có token nhưng không có userData, vẫn coi là đăng nhập
+  // UserContext sẽ tự động lấy userData từ API
+  return !!token;
 };
 
 export const isAdminLoggedIn = () => {

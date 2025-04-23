@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '../../context/ToastContext';
 import { API_ENDPOINTS } from '../../config/api';
 import { webSocketService } from '../../services/websocket';
+import { useUser } from '../../contexts/UserContext';
+import { isUserLoggedIn } from '../../utils/auth';
 import './NotificationDropdown.css';
 
 const NotificationDropdown = ({ currentUser }) => {
@@ -11,6 +13,7 @@ const NotificationDropdown = ({ currentUser }) => {
   const [isLoading, setIsLoading] = useState(false);
   const dropdownRef = useRef(null);
   const { showError } = useToast();
+  const { currentUser: contextUser } = useUser();
 
   // Fetch notifications when component mounts
   useEffect(() => {
@@ -39,7 +42,7 @@ const NotificationDropdown = ({ currentUser }) => {
   const subscribeToNotifications = async () => {
     try {
       await webSocketService.connect();
-      
+
       webSocketService.subscribeToNotifications(currentUser.id, (data) => {
         console.log('Received notification:', data);
         // Add new notification to the list
@@ -112,14 +115,14 @@ const NotificationDropdown = ({ currentUser }) => {
       }
 
       // Update local state
-      setNotifications(prev => 
-        prev.map(item => 
-          item.notification.id === notificationId 
-            ? { ...item, notification: { ...item.notification, read: true } } 
+      setNotifications(prev =>
+        prev.map(item =>
+          item.notification.id === notificationId
+            ? { ...item, notification: { ...item.notification, read: true } }
             : item
         )
       );
-      
+
       // Update unread count
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
@@ -142,13 +145,13 @@ const NotificationDropdown = ({ currentUser }) => {
       }
 
       // Update local state
-      setNotifications(prev => 
-        prev.map(item => ({ 
-          ...item, 
-          notification: { ...item.notification, read: true } 
+      setNotifications(prev =>
+        prev.map(item => ({
+          ...item,
+          notification: { ...item.notification, read: true }
         }))
       );
-      
+
       // Reset unread count
       setUnreadCount(0);
     } catch (error) {
@@ -163,6 +166,24 @@ const NotificationDropdown = ({ currentUser }) => {
       markAsRead(notification.notification.id);
     }
 
+    // Close dropdown first
+    setIsOpen(false);
+
+    // Verify user is logged in
+    if (!isUserLoggedIn()) {
+      console.error('User not authenticated, redirecting to login');
+      window.location.href = '/login';
+      return;
+    }
+
+    // Use the user from context if available, otherwise use the prop
+    const user = contextUser || currentUser;
+    if (!user || !user.id) {
+      console.error('User data not found, redirecting to login');
+      window.location.href = '/login';
+      return;
+    }
+
     // Handle different notification types
     switch (notification.notification.type) {
       case 'FRIEND_REQUEST':
@@ -174,15 +195,43 @@ const NotificationDropdown = ({ currentUser }) => {
       case 'COMMENT':
       case 'REPLY':
         // Navigate to the post
-        window.location.href = `/?postId=${notification.notification.entityId}`;
+        try {
+          // Check if we're already on the home page
+          if (window.location.pathname === '/' || window.location.pathname === '') {
+            // Use history.pushState to avoid full page reload
+            const url = new URL(window.location.href);
+            url.searchParams.set('postId', notification.notification.entityId);
+            window.history.pushState({}, '', url);
+
+            // Scroll to the post if it's already on the page
+            const postElement = document.getElementById(`post-${notification.notification.entityId}`);
+            if (postElement) {
+              postElement.scrollIntoView({ behavior: 'smooth' });
+              // Add highlight effect
+              postElement.classList.add('highlight-post');
+              setTimeout(() => {
+                postElement.classList.remove('highlight-post');
+              }, 2000);
+            } else {
+              // If post not found on current page, reload to show it
+              window.location.href = `/?postId=${notification.notification.entityId}`;
+            }
+          } else {
+            // If we're not on the home page, navigate to home with the postId
+            window.location.href = `/?postId=${notification.notification.entityId}`;
+          }
+        } catch (error) {
+          console.error('Error navigating to post:', error);
+          window.location.href = `/?postId=${notification.notification.entityId}`;
+        }
         break;
       case 'MESSAGE':
         // Open chat with the sender
         // This would be handled by your chat system
         break;
       default:
-        // Default action is to close the dropdown
-        setIsOpen(false);
+        // No additional action needed
+        break;
     }
   };
 
@@ -231,8 +280,8 @@ const NotificationDropdown = ({ currentUser }) => {
           <div className="notification-header">
             <h6 className="m-0">Thông báo</h6>
             {notifications.length > 0 && (
-              <button 
-                className="btn btn-sm btn-link text-primary" 
+              <button
+                className="btn btn-sm btn-link text-primary"
                 onClick={markAllAsRead}
               >
                 Đánh dấu tất cả đã đọc
@@ -249,8 +298,8 @@ const NotificationDropdown = ({ currentUser }) => {
               </div>
             ) : notifications.length > 0 ? (
               notifications.map((item) => (
-                <div 
-                  key={item.notification.id} 
+                <div
+                  key={item.notification.id}
                   className={`notification-item ${!item.notification.read ? 'unread' : ''}`}
                   onClick={() => handleNotificationClick(item)}
                 >

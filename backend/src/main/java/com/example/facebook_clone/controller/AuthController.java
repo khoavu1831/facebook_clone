@@ -12,10 +12,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.facebook_clone.model.User;
 import com.example.facebook_clone.repository.UserRepository;
+import com.example.facebook_clone.security.JwtUtil;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Autowired
     private UserRepository userRepository;
@@ -30,6 +34,9 @@ public class AuthController {
         // Lưu user mới
         User savedUser = userRepository.save(user);
 
+        // Tạo JWT token
+        String token = jwtUtil.generateToken(savedUser.getId(), savedUser.getEmail(), savedUser.getRole());
+
         // Tạo response
         Map<String, Object> response = new HashMap<>();
         response.put("id", savedUser.getId());
@@ -37,7 +44,7 @@ public class AuthController {
         response.put("firstName", savedUser.getFirstName());
         response.put("lastName", savedUser.getLastName());
         response.put("role", savedUser.getRole());
-        response.put("token", "dummy-token-" + savedUser.getId()); // Token giả
+        response.put("token", token);
 
         return ResponseEntity.ok(response);
     }
@@ -51,6 +58,9 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("message", "Thông tin đăng nhập không chính xác."));
         }
 
+        // Tạo JWT token
+        String token = jwtUtil.generateToken(user.getId(), user.getEmail(), user.getRole());
+
         // Tạo response
         Map<String, Object> response = new HashMap<>();
         response.put("id", user.getId());
@@ -58,7 +68,7 @@ public class AuthController {
         response.put("firstName", user.getFirstName());
         response.put("lastName", user.getLastName());
         response.put("role", user.getRole());
-        response.put("token", "dummy-token-" + user.getId()); // Token giả
+        response.put("token", token);
 
         return ResponseEntity.ok(response);
     }
