@@ -15,13 +15,18 @@ const Home = () => {
     // Debug log for currentUser
     console.log("currentUser from context:", currentUser);
 
+    // Only proceed if we have a valid user
+    if (!currentUser?.id) {
+      console.log("Waiting for user data to load...");
+      return;
+    }
+
     const fetchPosts = async () => {
       try {
         // Check if user is authenticated
         if (!currentUser?.id) {
-          console.log("No user ID found, redirecting to login");
-          window.location.href = '/login';
-          return;
+          console.log("No user ID found, waiting for user data to load");
+          return; // Just return instead of redirecting
         }
 
         const response = await fetch(`${API_ENDPOINTS.POSTS}?userId=${currentUser.id}`, {

@@ -251,6 +251,17 @@
   border-color: #86b7fe;
 }
 
+/* Highlight effect for posts */
+@keyframes highlight-animation {
+  0% { background-color: rgba(24, 119, 242, 0.1); }
+  50% { background-color: rgba(24, 119, 242, 0.2); }
+  100% { background-color: transparent; }
+}
+
+.highlight-post {
+  animation: highlight-animation 2s ease-out;
+}
+
 /* Responsive adjustments */
 @media (max-width: 576px) {
   .comment-thread {
