@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -64,11 +65,13 @@ public class PostController {
             @RequestParam("content") String content,
             @RequestParam(value = "images", required = false) MultipartFile[] images,
             @RequestParam(value = "videos", required = false) MultipartFile[] videos,
-            @RequestParam("userId") String userId) {
+            @RequestParam("userId") String userId,
+            @RequestParam(value = "privacy", required = false, defaultValue = "PUBLIC") String privacy) {
 
         Post post = new Post();
         post.setContent(content);
         post.setUserId(userId);
+        post.setPrivacy(privacy);
 
         // Xử lý images
         if (images != null && images.length > 0) {
@@ -100,13 +103,28 @@ public class PostController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Post>> getAllPosts() {
-        List<Post> posts = postRepository.findAll();
+    public ResponseEntity<List<Post>> getAllPosts(@RequestParam(value = "userId", required = false) String userId) {
+        List<Post> posts;
+
+        if (userId != null) {
+            // Nếu có userId, lấy tất cả bài viết công khai và bài viết riêng tư của người dùng đó
+            posts = postRepository.findAll().stream()
+                .filter(post -> "PUBLIC".equals(post.getPrivacy()) ||
+                        ("PRIVATE".equals(post.getPrivacy()) && post.getUserId().equals(userId)))
+                .collect(Collectors.toList());
+        } else {
+            // Nếu không có userId, chỉ lấy bài viết công khai
+            posts = postRepository.findAll().stream()
+                .filter(post -> "PUBLIC".equals(post.getPrivacy()))
+                .collect(Collectors.toList());
+        }
+
         posts.forEach(post -> {
             // Populate user information
             Optional<User> userOptional = userRepository.findById(post.getUserId());
             userOptional.ifPresent(post::setUser);
         });
+
         return ResponseEntity.ok(posts);
     }
 
@@ -314,6 +332,7 @@ public class PostController {
         try {
             String content = request.get("content");
             String userId = request.get("userId");
+            String privacy = request.get("privacy");
 
             if (content == null || userId == null) {
                 return ResponseEntity.badRequest().body("Content and userId are required");
@@ -334,6 +353,11 @@ public class PostController {
 
             // Cập nhật nội dung bài viết
             post.setContent(content);
+
+            // Cập nhật quyền riêng tư nếu có
+            if (privacy != null) {
+                post.setPrivacy(privacy);
+            }
 
             // Lưu và populate dữ liệu
             Post savedPost = postRepository.save(post);

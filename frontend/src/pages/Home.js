@@ -24,12 +24,12 @@ const Home = () => {
           return;
         }
 
-        const response = await fetch(`${API_ENDPOINTS.POSTS}`, {
+        const response = await fetch(`${API_ENDPOINTS.POSTS}?userId=${currentUser.id}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('userToken')}`
           }
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           console.log("Fetched posts:", data); // Debug log for posts
@@ -64,12 +64,12 @@ const Home = () => {
         <div className="col-6 offset-3">
           {currentUser && (
             <>
-              <PostForm 
-                onAddPost={(newPost) => setPosts([newPost, ...posts])} 
+              <PostForm
+                onAddPost={(newPost) => setPosts([newPost, ...posts])}
                 currentUser={currentUser} // Pass currentUser to PostForm
               />
-              <PostList 
-                posts={posts} 
+              <PostList
+                posts={posts}
                 currentUser={currentUser}
                 userData={currentUser} // For backward compatibility
               />

@@ -9,6 +9,7 @@ function PostForm({ onAddPost }) {
   const [isLoading, setIsLoading] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [error, setError] = useState(null);
+  const [privacy, setPrivacy] = useState('PUBLIC'); // Mặc định là PUBLIC
 
   const currentUser = JSON.parse(localStorage.getItem('userData'));
 
@@ -70,6 +71,7 @@ function PostForm({ onAddPost }) {
       const formData = new FormData();
       formData.append('content', content);
       formData.append('userId', currentUser.id);
+      formData.append('privacy', privacy);
 
       if (media) {
         if (media.type.includes('image')) {
@@ -118,6 +120,7 @@ function PostForm({ onAddPost }) {
       setContent('');
       setMedia(null);
       setMediaPreview(null);
+      setPrivacy('PUBLIC'); // Đặt lại quyền riêng tư về mặc định
     } catch (error) {
       console.error('Error creating post:', error);
       alert('Failed to create post. Please try again.');
@@ -130,6 +133,7 @@ function PostForm({ onAddPost }) {
     setContent('');
     setMedia(null);
     setMediaPreview(null);
+    setPrivacy('PUBLIC'); // Đặt lại quyền riêng tư về mặc định
   };
 
   return (
@@ -194,23 +198,38 @@ function PostForm({ onAddPost }) {
             Feeling/Activity
           </button>
         </div>
-        <div className="d-flex justify-content-end gap-2">
-          {(content.trim() || media) && (
-            <button
-              className="btn btn-outline-secondary btn-sm"
-              onClick={handleCancel}
+        <div className="d-flex justify-content-between align-items-center">
+          <div className="privacy-selector">
+            <select
+              className="form-select form-select-sm"
+              value={privacy}
+              onChange={(e) => setPrivacy(e.target.value)}
               disabled={isLoading}
+              aria-label="Chọn quyền riêng tư"
             >
-              Cancel
+              <option value="PUBLIC">Công khai</option>
+              <option value="PRIVATE">Riêng tư</option>
+            </select>
+          </div>
+
+          <div className="d-flex gap-2">
+            {(content.trim() || media) && (
+              <button
+                className="btn btn-outline-secondary btn-sm"
+                onClick={handleCancel}
+                disabled={isLoading}
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              className="btn btn-primary post-button"
+              onClick={handleSubmit}
+              disabled={isLoading || (!content.trim() && !media)}
+            >
+              {isLoading ? 'Posting...' : 'Post'}
             </button>
-          )}
-          <button
-            className="btn btn-primary post-button"
-            onClick={handleSubmit}
-            disabled={isLoading || (!content.trim() && !media)}
-          >
-            {isLoading ? 'Posting...' : 'Post'}
-          </button>
+          </div>
         </div>
       </div>
     </div>

@@ -287,6 +287,7 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
   // State cho chế độ chỉnh sửa
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
+  const [editPrivacy, setEditPrivacy] = useState(post.privacy || 'PUBLIC');
 
   return (
     <div key={post.id} className="card mb-3">
@@ -326,29 +327,54 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
               onChange={(e) => setEditContent(e.target.value)}
               rows="3"
             ></textarea>
-            <div className="d-flex justify-content-end gap-2">
-              <button
-                className="btn btn-sm btn-secondary"
-                onClick={() => {
-                  setIsEditing(false);
-                  setEditContent(post.content);
-                }}
-              >
-                Hủy
-              </button>
-              <button
-                className="btn btn-sm btn-primary"
-                onClick={() => {
-                  handleEditPost(post.id, editContent);
-                  setIsEditing(false);
-                }}
-              >
-                Lưu
-              </button>
+
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <div className="privacy-selector">
+                <select
+                  className="form-select form-select-sm"
+                  value={editPrivacy}
+                  onChange={(e) => setEditPrivacy(e.target.value)}
+                  aria-label="Chọn quyền riêng tư"
+                >
+                  <option value="PUBLIC">Công khai</option>
+                  <option value="PRIVATE">Riêng tư</option>
+                </select>
+              </div>
+
+              <div className="d-flex gap-2">
+                <button
+                  className="btn btn-sm btn-secondary"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditContent(post.content);
+                    setEditPrivacy(post.privacy || 'PUBLIC');
+                  }}
+                >
+                  Hủy
+                </button>
+                <button
+                  className="btn btn-sm btn-primary"
+                  onClick={() => {
+                    handleEditPost(post.id, editContent, editPrivacy);
+                    setIsEditing(false);
+                  }}
+                >
+                  Lưu
+                </button>
+              </div>
             </div>
           </div>
         ) : (
-          <PostContent post={post} />
+          <div>
+            <PostContent post={post} />
+            {post.privacy === 'PRIVATE' && (
+              <div className="privacy-indicator mt-1">
+                <small className="text-muted">
+                  <i className="bi bi-lock-fill me-1"></i> Riêng tư
+                </small>
+              </div>
+            )}
+          </div>
         )}
 
         <div className="d-flex gap-3 mb-3">
@@ -630,7 +656,7 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
   };
 
   // Xử lý sửa bài viết
-  const handleEditPost = async (postId, content) => {
+  const handleEditPost = async (postId, content, privacy) => {
     if (!content.trim()) {
       showError('Nội dung bài viết không được để trống');
       return;
@@ -645,7 +671,8 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
         },
         body: JSON.stringify({
           content: content,
-          userId: currentUser.id
+          userId: currentUser.id,
+          privacy: privacy
         })
       });
 
@@ -662,7 +689,7 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
       // Cập nhật bài viết trong UI
       setPosts(prevPosts =>
         prevPosts.map(post =>
-          post.id === postId ? { ...post, content: updatedPost.content } : post
+          post.id === postId ? { ...post, content: updatedPost.content, privacy: updatedPost.privacy } : post
         )
       );
 

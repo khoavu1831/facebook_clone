@@ -217,6 +217,40 @@
   display: inline-block;
 }
 
+/* Privacy styles */
+.privacy-indicator {
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.privacy-selector {
+  min-width: 120px;
+  max-width: 180px;
+  position: relative;
+  z-index: 100;
+}
+
+.privacy-selector .form-select {
+  font-size: 14px;
+  padding: 4px 12px 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  /* Sử dụng mũi tên mặc định của trình duyệt */
+}
+
+/* Fix dropdown display issues */
+.form-select option {
+  background-color: white;
+  color: #333;
+  padding: 8px;
+}
+
+.form-select:focus {
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  border-color: #86b7fe;
+}
+
 /* Responsive adjustments */
 @media (max-width: 576px) {
   .comment-thread {
