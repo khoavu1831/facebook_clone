@@ -23,6 +23,7 @@ import com.example.facebook_clone.model.Friend;
 import com.example.facebook_clone.model.User;
 import com.example.facebook_clone.repository.FriendRepository;
 import com.example.facebook_clone.repository.UserRepository;
+import com.example.facebook_clone.service.NotificationService;
 
 @RestController
 @RequestMapping("/api/friends")
@@ -37,6 +38,9 @@ public class FriendController {
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @PostMapping("/request")
     public ResponseEntity<?> sendFriendRequest(@RequestBody Map<String, String> request) {
@@ -91,6 +95,9 @@ public class FriendController {
             // Send to the friend's topic
             messagingTemplate.convertAndSend("/topic/friends/" + friendId, requestInfo);
             System.out.println("Sent NEW_REQUEST notification to user: " + friendId);
+
+            // Create notification for friend request
+            notificationService.createFriendRequestNotification(friendId, userId, savedRequest.getId());
 
             return ResponseEntity.ok(savedRequest);
         } catch (Exception e) {
@@ -164,6 +171,9 @@ public class FriendController {
                         notificationForRequester.put("friend", friendUser);
                         messagingTemplate.convertAndSend("/topic/friends/" + friendRequest.getUserId(), notificationForRequester);
                         System.out.println("Sent REQUEST_ACCEPTED notification to user: " + friendRequest.getUserId());
+
+                        // Create notification for friend accept
+                        notificationService.createFriendAcceptNotification(friendRequest.getUserId(), friendRequest.getFriendId(), friendRequest.getId());
 
                         // Notification for the user who accepted the request
                         Map<String, Object> notificationForAccepter = new HashMap<>();

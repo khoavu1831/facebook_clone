@@ -1,9 +1,18 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { logout } from "../utils/auth";
+import NotificationDropdown from "./Notification/NotificationDropdown";
 
 function Header() {
   const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('userData');
+    if (userData) {
+      setCurrentUser(JSON.parse(userData));
+    }
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -48,17 +57,9 @@ function Header() {
               />
               <span>MaGaming</span>
           </div> */}
-          
+
           {/* Notify */}
-          <div className="text-secondary fs-5">
-            <Link to="/">
-              <img
-                src="/img/icons/notify.png"
-                alt="Notification Logo"
-                style={{ width: "36px", height: "36px" }}
-              />
-            </Link>
-          </div>
+          {currentUser && <NotificationDropdown currentUser={currentUser} />}
 
           {/* Messenger
           <div className="text-secondary fs-5">

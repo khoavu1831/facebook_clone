@@ -29,6 +29,7 @@ import com.example.facebook_clone.model.User;
 import com.example.facebook_clone.repository.PostRepository;
 import com.example.facebook_clone.repository.UserRepository;
 import com.example.facebook_clone.service.FileStorageService;
+import com.example.facebook_clone.service.NotificationService;
 import com.example.facebook_clone.service.UserService;
 
 @RestController
@@ -51,6 +52,9 @@ public class PostController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private NotificationService notificationService;
+
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
@@ -60,7 +64,7 @@ public class PostController {
             @RequestParam(value = "images", required = false) MultipartFile[] images,
             @RequestParam(value = "videos", required = false) MultipartFile[] videos,
             @RequestParam("userId") String userId) {
-        
+
         Post post = new Post();
         post.setContent(content);
         post.setUserId(userId);
@@ -86,7 +90,7 @@ public class PostController {
         }
 
         Post savedPost = postRepository.save(post);
-        
+
         // Populate user information
         Optional<User> userOptional = userRepository.findById(userId);
         userOptional.ifPresent(savedPost::setUser);
@@ -141,7 +145,7 @@ public class PostController {
         try {
             Post post = postRepository.findById(postId)
                     .orElseThrow(() -> new RuntimeException("Post not found"));
-            
+
             // Update likes
             String userId = request.get("userId");
             List<String> likes = new ArrayList<>(post.getLikes());
@@ -155,11 +159,18 @@ public class PostController {
             // Save and populate
             Post savedPost = postRepository.save(post);
             populatePostData(savedPost);
-            
+
             // Send WebSocket update
             System.out.println("Sending WebSocket update for post: " + postId);
             messagingTemplate.convertAndSend("/topic/posts/" + postId, savedPost);
-            
+
+            // Tạo thông báo khi có người thích bài viết
+            // Kiểm tra xem hành động là thích hay bỏ thích
+            boolean isLikeAction = likes.contains(userId);
+            if (isLikeAction) {
+                notificationService.createLikeNotification(post.getUserId(), userId, postId);
+            }
+
             return ResponseEntity.ok(savedPost);
         } catch (Exception e) {
             e.printStackTrace();
@@ -184,7 +195,7 @@ public class PostController {
                 if (parentComment == null) {
                     return ResponseEntity.badRequest().body("Parent comment not found");
                 }
-                
+
                 comment.setParentId(request.getParentId());
                 if (parentComment.getReplies() == null) {
                     parentComment.setReplies(new ArrayList<>());
@@ -203,10 +214,34 @@ public class PostController {
 
             Post savedPost = postRepository.save(post);
             populatePostData(savedPost);
-            
+
             // Send WebSocket update
             messagingTemplate.convertAndSend("/topic/posts/" + postId, savedPost);
-            
+
+            // Tạo thông báo nếu đây là bình luận mới (không phải reply)
+            if (request.getParentId() == null || request.getParentId().isEmpty()) {
+                // Chỉ tạo thông báo nếu người bình luận không phải là chủ bài viết
+                if (!request.getUserId().equals(post.getUserId())) {
+                    notificationService.createCommentNotification(
+                        post.getUserId(),
+                        request.getUserId(),
+                        postId,
+                        comment.getId()
+                    );
+                }
+            } else {
+                // Đây là reply, tìm comment gốc để lấy userId
+                Comment parentComment = findCommentById(post.getComments(), request.getParentId());
+                if (parentComment != null && !request.getUserId().equals(parentComment.getUserId())) {
+                    notificationService.createReplyNotification(
+                        parentComment.getUserId(),
+                        request.getUserId(),
+                        postId,
+                        comment.getId()
+                    );
+                }
+            }
+
             return ResponseEntity.ok(savedPost);
         } catch (Exception e) {
             e.printStackTrace();
@@ -216,7 +251,7 @@ public class PostController {
 
     private Comment findCommentById(List<Comment> comments, String commentId) {
         if (comments == null) return null;
-        
+
         for (Comment comment : comments) {
             if (comment.getId().equals(commentId)) {
                 return comment;
@@ -248,7 +283,7 @@ public class PostController {
             Post savedPost = postRepository.save(sharedPost);
             // Populate full post data before returning
             populatePostData(savedPost);
-            
+
             return ResponseEntity.ok(savedPost);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
