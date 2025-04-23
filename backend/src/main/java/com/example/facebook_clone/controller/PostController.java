@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -29,6 +31,7 @@ import com.example.facebook_clone.model.User;
 import com.example.facebook_clone.repository.PostRepository;
 import com.example.facebook_clone.repository.UserRepository;
 import com.example.facebook_clone.service.FileStorageService;
+import com.example.facebook_clone.service.NotificationService;
 import com.example.facebook_clone.service.UserService;
 
 @RestController
@@ -51,6 +54,9 @@ public class PostController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private NotificationService notificationService;
+
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
@@ -59,11 +65,13 @@ public class PostController {
             @RequestParam("content") String content,
             @RequestParam(value = "images", required = false) MultipartFile[] images,
             @RequestParam(value = "videos", required = false) MultipartFile[] videos,
-            @RequestParam("userId") String userId) {
-        
+            @RequestParam("userId") String userId,
+            @RequestParam(value = "privacy", required = false, defaultValue = "PUBLIC") String privacy) {
+
         Post post = new Post();
         post.setContent(content);
         post.setUserId(userId);
+        post.setPrivacy(privacy);
 
         // Xử lý images
         if (images != null && images.length > 0) {
@@ -86,7 +94,7 @@ public class PostController {
         }
 
         Post savedPost = postRepository.save(post);
-        
+
         // Populate user information
         Optional<User> userOptional = userRepository.findById(userId);
         userOptional.ifPresent(savedPost::setUser);
@@ -95,13 +103,28 @@ public class PostController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Post>> getAllPosts() {
-        List<Post> posts = postRepository.findAll();
+    public ResponseEntity<List<Post>> getAllPosts(@RequestParam(value = "userId", required = false) String userId) {
+        List<Post> posts;
+
+        if (userId != null) {
+            // Nếu có userId, lấy tất cả bài viết công khai và bài viết riêng tư của người dùng đó
+            posts = postRepository.findAll().stream()
+                .filter(post -> "PUBLIC".equals(post.getPrivacy()) ||
+                        ("PRIVATE".equals(post.getPrivacy()) && post.getUserId().equals(userId)))
+                .collect(Collectors.toList());
+        } else {
+            // Nếu không có userId, chỉ lấy bài viết công khai
+            posts = postRepository.findAll().stream()
+                .filter(post -> "PUBLIC".equals(post.getPrivacy()))
+                .collect(Collectors.toList());
+        }
+
         posts.forEach(post -> {
             // Populate user information
             Optional<User> userOptional = userRepository.findById(post.getUserId());
             userOptional.ifPresent(post::setUser);
         });
+
         return ResponseEntity.ok(posts);
     }
 
@@ -131,9 +154,27 @@ public class PostController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deletePost(@PathVariable String id) {
-        postRepository.deleteById(id);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<?> deletePost(@PathVariable String id, @RequestParam String userId) {
+        try {
+            // Kiểm tra xem bài viết có tồn tại không
+            Optional<Post> postOptional = postRepository.findById(id);
+            if (!postOptional.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Post post = postOptional.get();
+
+            // Kiểm tra xem người dùng có phải là chủ sở hữu không
+            if (!post.getUserId().equals(userId)) {
+                return ResponseEntity.status(403).body("You don't have permission to delete this post");
+            }
+
+            postRepository.deleteById(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @PostMapping("/{postId}/like")
@@ -141,7 +182,7 @@ public class PostController {
         try {
             Post post = postRepository.findById(postId)
                     .orElseThrow(() -> new RuntimeException("Post not found"));
-            
+
             // Update likes
             String userId = request.get("userId");
             List<String> likes = new ArrayList<>(post.getLikes());
@@ -155,11 +196,18 @@ public class PostController {
             // Save and populate
             Post savedPost = postRepository.save(post);
             populatePostData(savedPost);
-            
+
             // Send WebSocket update
             System.out.println("Sending WebSocket update for post: " + postId);
             messagingTemplate.convertAndSend("/topic/posts/" + postId, savedPost);
-            
+
+            // Tạo thông báo khi có người thích bài viết
+            // Kiểm tra xem hành động là thích hay bỏ thích
+            boolean isLikeAction = likes.contains(userId);
+            if (isLikeAction) {
+                notificationService.createLikeNotification(post.getUserId(), userId, postId);
+            }
+
             return ResponseEntity.ok(savedPost);
         } catch (Exception e) {
             e.printStackTrace();
@@ -184,7 +232,7 @@ public class PostController {
                 if (parentComment == null) {
                     return ResponseEntity.badRequest().body("Parent comment not found");
                 }
-                
+
                 comment.setParentId(request.getParentId());
                 if (parentComment.getReplies() == null) {
                     parentComment.setReplies(new ArrayList<>());
@@ -203,10 +251,34 @@ public class PostController {
 
             Post savedPost = postRepository.save(post);
             populatePostData(savedPost);
-            
+
             // Send WebSocket update
             messagingTemplate.convertAndSend("/topic/posts/" + postId, savedPost);
-            
+
+            // Tạo thông báo nếu đây là bình luận mới (không phải reply)
+            if (request.getParentId() == null || request.getParentId().isEmpty()) {
+                // Chỉ tạo thông báo nếu người bình luận không phải là chủ bài viết
+                if (!request.getUserId().equals(post.getUserId())) {
+                    notificationService.createCommentNotification(
+                        post.getUserId(),
+                        request.getUserId(),
+                        postId,
+                        comment.getId()
+                    );
+                }
+            } else {
+                // Đây là reply, tìm comment gốc để lấy userId
+                Comment parentComment = findCommentById(post.getComments(), request.getParentId());
+                if (parentComment != null && !request.getUserId().equals(parentComment.getUserId())) {
+                    notificationService.createReplyNotification(
+                        parentComment.getUserId(),
+                        request.getUserId(),
+                        postId,
+                        comment.getId()
+                    );
+                }
+            }
+
             return ResponseEntity.ok(savedPost);
         } catch (Exception e) {
             e.printStackTrace();
@@ -216,7 +288,7 @@ public class PostController {
 
     private Comment findCommentById(List<Comment> comments, String commentId) {
         if (comments == null) return null;
-        
+
         for (Comment comment : comments) {
             if (comment.getId().equals(commentId)) {
                 return comment;
@@ -248,9 +320,103 @@ public class PostController {
             Post savedPost = postRepository.save(sharedPost);
             // Populate full post data before returning
             populatePostData(savedPost);
-            
+
             return ResponseEntity.ok(savedPost);
         } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updatePost(@PathVariable String id, @RequestBody Map<String, String> request) {
+        try {
+            String content = request.get("content");
+            String userId = request.get("userId");
+            String privacy = request.get("privacy");
+
+            if (content == null || userId == null) {
+                return ResponseEntity.badRequest().body("Content and userId are required");
+            }
+
+            // Kiểm tra xem bài viết có tồn tại không
+            Optional<Post> postOptional = postRepository.findById(id);
+            if (!postOptional.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Post post = postOptional.get();
+
+            // Kiểm tra xem người dùng có phải là chủ sở hữu không
+            if (!post.getUserId().equals(userId)) {
+                return ResponseEntity.status(403).body("You don't have permission to update this post");
+            }
+
+            // Cập nhật nội dung bài viết
+            post.setContent(content);
+
+            // Cập nhật quyền riêng tư nếu có
+            if (privacy != null) {
+                post.setPrivacy(privacy);
+            }
+
+            // Lưu và populate dữ liệu
+            Post savedPost = postRepository.save(post);
+            populatePostData(savedPost);
+
+            // Gửi WebSocket update
+            messagingTemplate.convertAndSend("/topic/posts/" + id, savedPost);
+
+            return ResponseEntity.ok(savedPost);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{postId}/comments/{commentId}")
+    public ResponseEntity<?> deleteComment(@PathVariable String postId, @PathVariable String commentId, @RequestParam String userId) {
+        try {
+            // Kiểm tra xem bài viết có tồn tại không
+            Optional<Post> postOptional = postRepository.findById(postId);
+            if (!postOptional.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Post post = postOptional.get();
+
+            // Tìm bình luận cần xóa
+            Comment commentToDelete = findCommentById(post.getComments(), commentId);
+            if (commentToDelete == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // Kiểm tra xem người dùng có phải là chủ sở hữu bình luận không
+            if (!commentToDelete.getUserId().equals(userId)) {
+                return ResponseEntity.status(403).body("You don't have permission to delete this comment");
+            }
+
+            // Xóa bình luận
+            if (commentToDelete.getParentId() == null) {
+                // Nếu là bình luận gốc, xóa khỏi danh sách bình luận của bài viết
+                post.getComments().removeIf(c -> c.getId().equals(commentId));
+            } else {
+                // Nếu là bình luận con, tìm bình luận cha và xóa khỏi danh sách replies
+                Comment parentComment = findCommentById(post.getComments(), commentToDelete.getParentId());
+                if (parentComment != null && parentComment.getReplies() != null) {
+                    parentComment.getReplies().removeIf(r -> r.getId().equals(commentId));
+                }
+            }
+
+            // Lưu và populate dữ liệu
+            Post savedPost = postRepository.save(post);
+            populatePostData(savedPost);
+
+            // Gửi WebSocket update
+            messagingTemplate.convertAndSend("/topic/posts/" + postId, savedPost);
+
+            return ResponseEntity.ok(savedPost);
+        } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }

@@ -19,12 +19,13 @@ public class Post {
     private List<String> videos;
     private List<String> likes;
     private List<Comment> comments;
-    
+    private String privacy = "PUBLIC"; // Mặc định là PUBLIC, có thể là PUBLIC hoặc PRIVATE
+
     // Các trường cho chức năng share
     private boolean isShared;
     private String originalPostId;
     private Post originalPost;
-    
+
     @Transient
     private User user;
 
@@ -34,6 +35,7 @@ public class Post {
         this.likes = new ArrayList<>();
         this.images = new ArrayList<>();
         this.videos = new ArrayList<>();
+        this.privacy = "PUBLIC"; // Mặc định là PUBLIC
     }
 
     // Getters and Setters cho các trường share
@@ -140,6 +142,14 @@ public class Post {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    public String getPrivacy() {
+        return privacy;
+    }
+
+    public void setPrivacy(String privacy) {
+        this.privacy = privacy;
     }
 
     // Các phương thức tiện ích

@@ -8,6 +8,7 @@ class WebSocketService {
         this.subscriptions = new Map();
         this.friendSubscriptions = new Map();
         this.messageSubscriptions = new Map();
+        this.notificationSubscriptions = new Map();
         this.connected = false;
         this.connectPromise = null;
         this.connectionAttempts = 0;
@@ -152,11 +153,13 @@ class WebSocketService {
                 const currentSubscriptions = new Map(this.subscriptions);
                 const currentFriendSubscriptions = new Map(this.friendSubscriptions);
                 const currentMessageSubscriptions = new Map(this.messageSubscriptions);
+                const currentNotificationSubscriptions = new Map(this.notificationSubscriptions);
 
                 // Clear subscriptions maps before deactivating
                 this.subscriptions.clear();
                 this.friendSubscriptions.clear();
                 this.messageSubscriptions.clear();
+                this.notificationSubscriptions.clear();
 
                 // Deactivate client
                 this.stompClient.deactivate();
@@ -166,12 +169,14 @@ class WebSocketService {
                 this.subscriptions = currentSubscriptions;
                 this.friendSubscriptions = currentFriendSubscriptions;
                 this.messageSubscriptions = currentMessageSubscriptions;
+                this.notificationSubscriptions = currentNotificationSubscriptions;
             } catch (e) {
                 console.error('Error deactivating STOMP client:', e);
                 // Clear subscriptions on error
                 this.subscriptions.clear();
                 this.friendSubscriptions.clear();
                 this.messageSubscriptions.clear();
+                this.notificationSubscriptions.clear();
             } finally {
                 this.stompClient = null;
             }
@@ -254,6 +259,23 @@ class WebSocketService {
                 console.error(`Failed to resubscribe to messages for user ${userId}:`, error);
                 // Restore the original subscription in the map
                 this.messageSubscriptions.set(userId, tempMessageSubscriptions.get(userId));
+            }
+        }
+
+        // Resubscribe to notification updates
+        const notificationSubscriptions = new Map(this.notificationSubscriptions);
+        const tempNotificationSubscriptions = new Map(this.notificationSubscriptions);
+        this.notificationSubscriptions.clear();
+
+        console.log(`Resubscribing to ${notificationSubscriptions.size} notification updates`);
+        for (const [userId, { callback }] of notificationSubscriptions) {
+            try {
+                await this.subscribeToNotifications(userId, callback);
+                console.log(`Successfully resubscribed to notifications for user: ${userId}`);
+            } catch (error) {
+                console.error(`Failed to resubscribe to notifications for user ${userId}:`, error);
+                // Restore the original subscription in the map
+                this.notificationSubscriptions.set(userId, tempNotificationSubscriptions.get(userId));
             }
         }
 
@@ -413,6 +435,55 @@ class WebSocketService {
         }
     }
 
+    async subscribeToNotifications(userId, callback) {
+        if (!userId || !callback) {
+            console.error('Invalid userId or callback for notification subscription');
+            return;
+        }
+
+        if (this.notificationSubscriptions.has(userId)) {
+            console.log(`Already subscribed to notifications for user: ${userId}`);
+            return;
+        }
+
+        try {
+            if (!this.connected) {
+                console.log(`WebSocket not connected, connecting for notifications to user: ${userId}`);
+                await this.connect();
+            }
+
+            console.log(`Subscribing to notifications for user: ${userId}`);
+            const subscription = this.stompClient.subscribe(`/topic/notifications/${userId}`, message => {
+                try {
+                    const data = JSON.parse(message.body);
+                    console.log(`Received notification for user ${userId}:`, data);
+                    callback(data);
+                } catch (error) {
+                    console.error('Error parsing notification:', error);
+                }
+            });
+
+            console.log(`Successfully subscribed to notifications for user: ${userId}`);
+            this.notificationSubscriptions.set(userId, { callback, subscription });
+        } catch (error) {
+            console.error(`Failed to subscribe to notifications for user ${userId}:`, error);
+            this.reconnectWithDelay();
+        }
+    }
+
+    unsubscribeFromNotifications(userId) {
+        const sub = this.notificationSubscriptions.get(userId);
+        if (sub && sub.subscription) {
+            try {
+                console.log(`Unsubscribing from notifications for user: ${userId}`);
+                sub.subscription.unsubscribe();
+            } catch (e) {
+                console.error(`Error unsubscribing from notifications for user ${userId}:`, e);
+            }
+            this.notificationSubscriptions.delete(userId);
+        }
+    }
+
     disconnect() {
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
@@ -455,6 +526,18 @@ class WebSocketService {
                 }
             });
             this.messageSubscriptions.clear();
+
+            // Unsubscribe from notification updates
+            this.notificationSubscriptions.forEach((sub) => {
+                if (sub.subscription) {
+                    try {
+                        sub.subscription.unsubscribe();
+                    } catch (e) {
+                        console.error('Error unsubscribing from notifications:', e);
+                    }
+                }
+            });
+            this.notificationSubscriptions.clear();
 
             this.resetConnection();
         }
