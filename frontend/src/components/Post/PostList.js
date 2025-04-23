@@ -3,6 +3,8 @@ import { API_ENDPOINTS } from '../../config/api';
 import './PostList.css';
 import SharePostModal from './SharePostModal';
 import { webSocketService } from '../../services/websocket';
+import { useToast } from '../../context/ToastContext';
+import PostOptionsMenu from './PostOptionsMenu';
 
 // Component PostContent được memo để tránh render lại không cần thiết
 const PostContent = memo(({ post }) => {
@@ -122,11 +124,14 @@ const PostContent = memo(({ post }) => {
   );
 });
 
-const Comment = ({ comment, postId, onReply, currentUser, userProfile, getFullImageUrl, depth = 0 }) => {
+const Comment = ({ comment, postId, onReply, onDelete, currentUser, userProfile, getFullImageUrl, depth = 0 }) => {
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showAllReplies, setShowAllReplies] = useState(false);
+
+  // Kiểm tra xem người dùng hiện tại có phải là chủ sở hữu bình luận không
+  const isCommentOwner = currentUser?.id === comment.userId;
 
   if (!currentUser) {
     return null;
@@ -173,14 +178,22 @@ const Comment = ({ comment, postId, onReply, currentUser, userProfile, getFullIm
             {comment.content}
           </div>
 
-          <div className="comment-actions mt-1">
+          <div className="comment-actions mt-1 d-flex align-items-center">
             <button
               className="btn btn-link btn-sm p-0 text-muted me-2"
               onClick={() => setShowReplyInput(!showReplyInput)}
             >
               Phản hồi
             </button>
-            <small className="text-muted">
+            {isCommentOwner && (
+              <button
+                className="btn btn-link btn-sm p-0 text-danger me-2"
+                onClick={() => onDelete(postId, comment.id)}
+              >
+                <i className="bi bi-trash-fill"></i> Xóa
+              </button>
+            )}
+            <small className="text-muted ms-auto">
               {new Date(comment.createdAt).toLocaleString()}
             </small>
           </div>
@@ -241,6 +254,7 @@ const Comment = ({ comment, postId, onReply, currentUser, userProfile, getFullIm
                   comment={reply}
                   postId={postId}
                   onReply={onReply}
+                  onDelete={onDelete}
                   currentUser={currentUser}
                   userProfile={userProfile}
                   getFullImageUrl={getFullImageUrl}
@@ -256,7 +270,7 @@ const Comment = ({ comment, postId, onReply, currentUser, userProfile, getFullIm
 };
 
 // Component PostItem để render từng bài đăng, được memo
-const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComment, handleShareClick, commentInputs, setCommentInputs, isLoading }) => {
+const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComment, handleShareClick, handleDeletePost, handleEditPost, handleDeleteComment, commentInputs, setCommentInputs, isLoading }) => {
   const getFullImageUrl = useCallback((path) => {
     if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http') || path.startsWith('blob')) return path;
@@ -266,6 +280,13 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
   if (!currentUser) {
     return null;
   }
+
+  // Kiểm tra xem người dùng hiện tại có phải là chủ sở hữu bài viết không
+  const isPostOwner = currentUser?.id === post.userId;
+
+  // State cho chế độ chỉnh sửa
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(post.content);
 
   return (
     <div key={post.id} className="card mb-3">
@@ -285,9 +306,50 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
               {new Date(post.createdAt).toLocaleString()}
             </small>
           </div>
+
+          {isPostOwner && (
+            <div className="post-options">
+              <PostOptionsMenu
+                postId={post.id}
+                onEdit={() => setIsEditing(true)}
+                onDelete={() => handleDeletePost(post.id)}
+              />
+            </div>
+          )}
         </div>
 
-        <PostContent post={post} />
+        {isEditing ? (
+          <div className="edit-post-container mb-3">
+            <textarea
+              className="form-control mb-2"
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              rows="3"
+            ></textarea>
+            <div className="d-flex justify-content-end gap-2">
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditContent(post.content);
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={() => {
+                  handleEditPost(post.id, editContent);
+                  setIsEditing(false);
+                }}
+              >
+                Lưu
+              </button>
+            </div>
+          </div>
+        ) : (
+          <PostContent post={post} />
+        )}
 
         <div className="d-flex gap-3 mb-3">
           <button
@@ -330,6 +392,7 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
                 comment={comment}
                 postId={post.id}
                 onReply={handleComment}
+                onDelete={handleDeleteComment}
                 currentUser={currentUser}
                 userProfile={userProfile}
                 getFullImageUrl={getFullImageUrl}
@@ -382,6 +445,7 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
   const listRef = useRef(null);
   const subscribedPosts = useRef(new Set()); // Track subscribed posts
   const [isLoggedIn, setIsLoggedIn] = useState(!!currentUser);
+  const { showSuccess, showError } = useToast();
 
   // Fetch user profile to get avatar
   useEffect(() => {
@@ -530,6 +594,123 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
     setShowShareModal(true);
   };
 
+  // Xử lý xóa bài viết
+  const handleDeletePost = async (postId) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa bài viết này?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts/${postId}?userId=${currentUser.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('Bạn không có quyền xóa bài viết này');
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Không thể xóa bài viết');
+      }
+
+      // Xóa bài viết khỏi UI
+      setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+      showSuccess('Xóa bài viết thành công');
+
+      // Hủy đăng ký WebSocket
+      webSocketService.unsubscribeFromPost(postId);
+      subscribedPosts.current.delete(postId);
+    } catch (error) {
+      console.error('Lỗi khi xóa bài viết:', error);
+      showError(error.message || 'Không thể xóa bài viết. Vui lòng thử lại.');
+    }
+  };
+
+  // Xử lý sửa bài viết
+  const handleEditPost = async (postId, content) => {
+    if (!content.trim()) {
+      showError('Nội dung bài viết không được để trống');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts/${postId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+        },
+        body: JSON.stringify({
+          content: content,
+          userId: currentUser.id
+        })
+      });
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('Bạn không có quyền sửa bài viết này');
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Không thể cập nhật bài viết');
+      }
+
+      const updatedPost = await response.json();
+
+      // Cập nhật bài viết trong UI
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post.id === postId ? { ...post, content: updatedPost.content } : post
+        )
+      );
+
+      showSuccess('Cập nhật bài viết thành công');
+    } catch (error) {
+      console.error('Lỗi khi cập nhật bài viết:', error);
+      showError(error.message || 'Không thể cập nhật bài viết. Vui lòng thử lại.');
+    }
+  };
+
+  // Xử lý xóa bình luận
+  const handleDeleteComment = async (postId, commentId) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa bình luận này?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts/${postId}/comments/${commentId}?userId=${currentUser.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('Bạn không có quyền xóa bình luận này');
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Không thể xóa bình luận');
+      }
+
+      const updatedPost = await response.json();
+
+      // Cập nhật bài viết với bình luận đã xóa
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post.id === postId ? updatedPost : post
+        )
+      );
+
+      showSuccess('Xóa bình luận thành công');
+    } catch (error) {
+      console.error('Lỗi khi xóa bình luận:', error);
+      showError(error.message || 'Không thể xóa bình luận. Vui lòng thử lại.');
+    }
+  };
+
   // WebSocket setup for real-time updates
   useEffect(() => {
     let isComponentMounted = true;
@@ -637,6 +818,9 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
             handleLike={handleLike}
             handleComment={handleComment}
             handleShareClick={handleShareClick}
+            handleDeletePost={handleDeletePost}
+            handleEditPost={handleEditPost}
+            handleDeleteComment={handleDeleteComment}
             commentInputs={commentInputs}
             setCommentInputs={setCommentInputs}
             isLoading={isLoading}

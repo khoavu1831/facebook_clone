@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -135,9 +136,27 @@ public class PostController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deletePost(@PathVariable String id) {
-        postRepository.deleteById(id);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<?> deletePost(@PathVariable String id, @RequestParam String userId) {
+        try {
+            // Kiểm tra xem bài viết có tồn tại không
+            Optional<Post> postOptional = postRepository.findById(id);
+            if (!postOptional.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Post post = postOptional.get();
+
+            // Kiểm tra xem người dùng có phải là chủ sở hữu không
+            if (!post.getUserId().equals(userId)) {
+                return ResponseEntity.status(403).body("You don't have permission to delete this post");
+            }
+
+            postRepository.deleteById(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @PostMapping("/{postId}/like")
@@ -286,6 +305,94 @@ public class PostController {
 
             return ResponseEntity.ok(savedPost);
         } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updatePost(@PathVariable String id, @RequestBody Map<String, String> request) {
+        try {
+            String content = request.get("content");
+            String userId = request.get("userId");
+
+            if (content == null || userId == null) {
+                return ResponseEntity.badRequest().body("Content and userId are required");
+            }
+
+            // Kiểm tra xem bài viết có tồn tại không
+            Optional<Post> postOptional = postRepository.findById(id);
+            if (!postOptional.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Post post = postOptional.get();
+
+            // Kiểm tra xem người dùng có phải là chủ sở hữu không
+            if (!post.getUserId().equals(userId)) {
+                return ResponseEntity.status(403).body("You don't have permission to update this post");
+            }
+
+            // Cập nhật nội dung bài viết
+            post.setContent(content);
+
+            // Lưu và populate dữ liệu
+            Post savedPost = postRepository.save(post);
+            populatePostData(savedPost);
+
+            // Gửi WebSocket update
+            messagingTemplate.convertAndSend("/topic/posts/" + id, savedPost);
+
+            return ResponseEntity.ok(savedPost);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{postId}/comments/{commentId}")
+    public ResponseEntity<?> deleteComment(@PathVariable String postId, @PathVariable String commentId, @RequestParam String userId) {
+        try {
+            // Kiểm tra xem bài viết có tồn tại không
+            Optional<Post> postOptional = postRepository.findById(postId);
+            if (!postOptional.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Post post = postOptional.get();
+
+            // Tìm bình luận cần xóa
+            Comment commentToDelete = findCommentById(post.getComments(), commentId);
+            if (commentToDelete == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // Kiểm tra xem người dùng có phải là chủ sở hữu bình luận không
+            if (!commentToDelete.getUserId().equals(userId)) {
+                return ResponseEntity.status(403).body("You don't have permission to delete this comment");
+            }
+
+            // Xóa bình luận
+            if (commentToDelete.getParentId() == null) {
+                // Nếu là bình luận gốc, xóa khỏi danh sách bình luận của bài viết
+                post.getComments().removeIf(c -> c.getId().equals(commentId));
+            } else {
+                // Nếu là bình luận con, tìm bình luận cha và xóa khỏi danh sách replies
+                Comment parentComment = findCommentById(post.getComments(), commentToDelete.getParentId());
+                if (parentComment != null && parentComment.getReplies() != null) {
+                    parentComment.getReplies().removeIf(r -> r.getId().equals(commentId));
+                }
+            }
+
+            // Lưu và populate dữ liệu
+            Post savedPost = postRepository.save(post);
+            populatePostData(savedPost);
+
+            // Gửi WebSocket update
+            messagingTemplate.convertAndSend("/topic/posts/" + postId, savedPost);
+
+            return ResponseEntity.ok(savedPost);
+        } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
