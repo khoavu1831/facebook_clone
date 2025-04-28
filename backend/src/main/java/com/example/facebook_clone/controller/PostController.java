@@ -107,10 +107,12 @@ public class PostController {
         List<Post> posts;
 
         if (userId != null) {
-            // Nếu có userId, lấy tất cả bài viết công khai và bài viết riêng tư của người dùng đó
+            // Lấy tất cả bài viết công khai của người khác và tất cả bài viết của mình
             posts = postRepository.findAll().stream()
-                .filter(post -> "PUBLIC".equals(post.getPrivacy()) ||
-                        ("PRIVATE".equals(post.getPrivacy()) && post.getUserId().equals(userId)))
+                .filter(post -> 
+                    post.getUserId().equals(userId) || // Bài viết của mình
+                    "PUBLIC".equals(post.getPrivacy()) // Bài viết công khai của người khác
+                )
                 .collect(Collectors.toList());
         } else {
             // Nếu không có userId, chỉ lấy bài viết công khai
@@ -126,15 +128,33 @@ public class PostController {
 
             if (post.getOriginalPostId() != null) {
                 Post originalPost = postRepository.findById(post.getOriginalPostId()).orElse(null);
-                post.setOriginalPost(originalPost);
-                System.out.println("Original post: " + originalPost);
-                Optional<User> userOptionalOriginalPost = userRepository.findById(originalPost.getUserId());
-                userOptionalOriginalPost.ifPresent(originalPost::setUser);
-
+                if (originalPost != null) {
+                    post.setOriginalPost(originalPost);
+                    Optional<User> userOptionalOriginalPost = userRepository.findById(originalPost.getUserId());
+                    userOptionalOriginalPost.ifPresent(originalPost::setUser);
+                }
             }
-
         });
 
+        return ResponseEntity.ok(posts);
+    }
+
+    // Add new endpoint for profile posts
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<Post>> getUserPosts(@PathVariable String userId, @RequestParam(required = false) String viewerId) {
+        List<Post> posts;
+        
+        if (userId.equals(viewerId)) {
+            // If viewing own profile, show all posts
+            posts = postRepository.findByUserId(userId);
+        } else {
+            // If viewing other's profile, show only public posts
+            posts = postRepository.findByUserId(userId).stream()
+                .filter(post -> "PUBLIC".equals(post.getPrivacy()))
+                .collect(Collectors.toList());
+        }
+
+        posts.forEach(this::populatePostData);
         return ResponseEntity.ok(posts);
     }
 

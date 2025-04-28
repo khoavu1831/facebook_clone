@@ -65,12 +65,15 @@ function Profile() {
         setOriginalAvatarPreview(avatarUrl);
         setOriginalCoverPreview(coverUrl);
 
-        // Fetch user's posts
-        const postsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts?userId=${currentUser.id}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+        // Fetch user's posts using the new endpoint
+        const postsResponse = await fetch(
+          `${API_ENDPOINTS.BASE_URL}/api/posts/user/${currentUser.id}?viewerId=${currentUser.id}`, 
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+            }
           }
-        });
+        );
 
         if (!postsResponse.ok) {
           throw new Error('Failed to fetch posts');
