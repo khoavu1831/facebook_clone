@@ -123,6 +123,16 @@ public class PostController {
             // Populate user information
             Optional<User> userOptional = userRepository.findById(post.getUserId());
             userOptional.ifPresent(post::setUser);
+
+            if (post.getOriginalPostId() != null) {
+                Post originalPost = postRepository.findById(post.getOriginalPostId()).orElse(null);
+                post.setOriginalPost(originalPost);
+                System.out.println("Original post: " + originalPost);
+                Optional<User> userOptionalOriginalPost = userRepository.findById(originalPost.getUserId());
+                userOptionalOriginalPost.ifPresent(originalPost::setUser);
+
+            }
+
         });
 
         return ResponseEntity.ok(posts);
