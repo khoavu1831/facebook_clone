@@ -4,8 +4,10 @@ import { useUser } from '../../contexts/UserContext';
 import { API_ENDPOINTS } from '../../config/api';
 import PostForm from '../../components/Post/PostForm';
 import PostList from '../../components/Post/PostList';
+import { useParams } from 'react-router-dom';
 
 function Profile() {
+  const { userId } = useParams();
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [name, setName] = useState('');
@@ -18,6 +20,7 @@ function Profile() {
   const [coverPreview, setCoverPreview] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState(null);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
 
   // Lưu trữ giá trị ban đầu để khôi phục khi hủy
   const [originalAvatarPreview, setOriginalAvatarPreview] = useState('');
@@ -33,14 +36,20 @@ function Profile() {
         setIsLoading(true);
         setError(null);
 
-        if (!currentUser?.id) {
+        // Xác định profileId dựa trên userId từ URL hoặc currentUser
+        const profileId = userId || currentUser?.id;
+
+        if (!profileId) {
           setError('User not found');
           setIsLoading(false);
           return;
         }
 
+        // Kiểm tra xem có phải profile của chính mình không
+        setIsOwnProfile(profileId === currentUser?.id);
+
         // Fetch profile data
-        const profileResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${currentUser.id}`, {
+        const profileResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${profileId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('userToken')}`
           }
@@ -67,7 +76,7 @@ function Profile() {
 
         // Fetch user's posts using the new endpoint
         const postsResponse = await fetch(
-          `${API_ENDPOINTS.BASE_URL}/api/posts/user/${currentUser.id}?viewerId=${currentUser.id}`, 
+          `${API_ENDPOINTS.BASE_URL}/api/posts/user/${profileId}?viewerId=${currentUser?.id}`, 
           {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('userToken')}`
@@ -91,7 +100,7 @@ function Profile() {
     };
 
     fetchProfileAndPosts();
-  }, [currentUser?.id]);
+  }, [userId, currentUser?.id]);
 
   // Nếu không có user data, redirect về login
   useEffect(() => {
@@ -220,7 +229,7 @@ function Profile() {
             }}
           />
         )}
-        {isEditing && (
+        {isEditing && isOwnProfile && (
           <label className="cover-upload-button">
             <span className="cover-upload-text">Change Cover Photo</span>
             <input
@@ -245,7 +254,7 @@ function Profile() {
               }}
             />
           )}
-          {isEditing && (
+          {isEditing && isOwnProfile && (
             <div className="avatar-upload-wrapper">
               <label className="avatar-upload-button">
                 Change Avatar
@@ -262,7 +271,7 @@ function Profile() {
         <div className="profile-info" style={{ marginTop: '86px' }}>
           <h1 className="profile-name">{name}</h1>
           <p className="profile-bio">{bio}</p>
-          {!isEditing && (
+          {!isEditing && isOwnProfile && (
             <button
               className="edit-profile-button"
               onClick={() => setIsEditing(true)}
@@ -273,7 +282,7 @@ function Profile() {
         </div>
       </div>
 
-      {isEditing && (
+      {isEditing && isOwnProfile && (
         <div className="profile-form-section">
           <h2 className="form-title">Edit Profile</h2>
           <form className="profile-form" onSubmit={handleSaveProfile}>
@@ -319,7 +328,7 @@ function Profile() {
       )}
 
       <div className="profile-content">
-        <PostForm onAddPost={handleAddPost} />
+        {isOwnProfile && <PostForm onAddPost={handleAddPost} />}
         {posts.length > 0 ? (
           <PostList
             posts={posts}

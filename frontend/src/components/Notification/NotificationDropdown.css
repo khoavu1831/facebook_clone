@@ -102,3 +102,20 @@
     right: -100px;
   }
 }
+
+.highlight-post {
+  animation: highlight 2s ease-in-out;
+  border: 2px solid #1877f2;
+}
+
+@keyframes highlight {
+  0% {
+    background-color: #e7f3ff;
+  }
+  50% {
+    background-color: #e7f3ff;
+  }
+  100% {
+    background-color: transparent;
+  }
+}

@@ -100,7 +100,30 @@ const NotificationDropdown = ({ currentUser }) => {
     }
   };
 
-  // Mark notification as read
+  // Delete all notifications
+  const deleteAllNotifications = async () => {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/notifications/all/${currentUser.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete all notifications');
+      }
+
+      // Clear all notifications from state
+      setNotifications([]);
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error deleting all notifications:', error);
+      showError('Không thể xóa thông báo');
+    }
+  };
+
+  // Mark a notification as read
   const markAsRead = async (notificationId) => {
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/notifications/mark-read/${notificationId}`, {
@@ -114,12 +137,12 @@ const NotificationDropdown = ({ currentUser }) => {
         throw new Error('Failed to mark notification as read');
       }
 
-      // Update local state
-      setNotifications(prev =>
-        prev.map(item =>
-          item.notification.id === notificationId
-            ? { ...item, notification: { ...item.notification, read: true } }
-            : item
+      // Update the notification in the state
+      setNotifications(prevNotifications => 
+        prevNotifications.map(notification => 
+          notification.notification.id === notificationId 
+            ? { ...notification, notification: { ...notification.notification, read: true } }
+            : notification
         )
       );
 
@@ -130,44 +153,15 @@ const NotificationDropdown = ({ currentUser }) => {
     }
   };
 
-  // Mark all notifications as read
-  const markAllAsRead = async () => {
-    try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/notifications/mark-all-read/${currentUser.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('userToken')}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to mark all notifications as read');
-      }
-
-      // Update local state
-      setNotifications(prev =>
-        prev.map(item => ({
-          ...item,
-          notification: { ...item.notification, read: true }
-        }))
-      );
-
-      // Reset unread count
-      setUnreadCount(0);
-    } catch (error) {
-      console.error('Error marking all notifications as read:', error);
-    }
-  };
-
   // Handle notification click based on type
   const handleNotificationClick = (notification) => {
-    // Mark as read first
+    // Close dropdown first
+    setIsOpen(false);
+
+    // Mark notification as read if it's unread
     if (!notification.notification.read) {
       markAsRead(notification.notification.id);
     }
-
-    // Close dropdown first
-    setIsOpen(false);
 
     // Verify user is logged in
     if (!isUserLoggedIn()) {
@@ -192,32 +186,28 @@ const NotificationDropdown = ({ currentUser }) => {
       case 'FRIEND_ACCEPT':
         window.location.href = '/friends';
         break;
+      case 'LIKE':
       case 'COMMENT':
       case 'REPLY':
+      case 'SHARE':
         // Navigate to the post
         try {
-          // Check if we're already on the home page
           if (window.location.pathname === '/' || window.location.pathname === '') {
-            // Use history.pushState to avoid full page reload
             const url = new URL(window.location.href);
             url.searchParams.set('postId', notification.notification.entityId);
             window.history.pushState({}, '', url);
 
-            // Scroll to the post if it's already on the page
             const postElement = document.getElementById(`post-${notification.notification.entityId}`);
             if (postElement) {
               postElement.scrollIntoView({ behavior: 'smooth' });
-              // Add highlight effect
               postElement.classList.add('highlight-post');
               setTimeout(() => {
                 postElement.classList.remove('highlight-post');
               }, 2000);
             } else {
-              // If post not found on current page, reload to show it
               window.location.href = `/?postId=${notification.notification.entityId}`;
             }
           } else {
-            // If we're not on the home page, navigate to home with the postId
             window.location.href = `/?postId=${notification.notification.entityId}`;
           }
         } catch (error) {
@@ -227,7 +217,18 @@ const NotificationDropdown = ({ currentUser }) => {
         break;
       case 'MESSAGE':
         // Open chat with the sender
-        // This would be handled by your chat system
+        try {
+          // Dispatch a custom event to open chat with the sender
+          const event = new CustomEvent('openChat', {
+            detail: {
+              userId: notification.notification.senderId,
+              userName: notification.notification.senderName
+            }
+          });
+          window.dispatchEvent(event);
+        } catch (error) {
+          console.error('Error opening chat:', error);
+        }
         break;
       default:
         // No additional action needed
@@ -256,10 +257,6 @@ const NotificationDropdown = ({ currentUser }) => {
   // Toggle dropdown
   const toggleDropdown = () => {
     setIsOpen(!isOpen);
-    if (!isOpen && unreadCount > 0) {
-      // Mark all as read when opening the dropdown
-      markAllAsRead();
-    }
   };
 
   return (
@@ -281,10 +278,10 @@ const NotificationDropdown = ({ currentUser }) => {
             <h6 className="m-0">Thông báo</h6>
             {notifications.length > 0 && (
               <button
-                className="btn btn-sm btn-link text-primary"
-                onClick={markAllAsRead}
+                className="btn btn-sm btn-link text-danger"
+                onClick={deleteAllNotifications}
               >
-                Đánh dấu tất cả đã đọc
+                Xóa tất cả
               </button>
             )}
           </div>

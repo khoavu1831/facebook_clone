@@ -5,6 +5,7 @@ import SharePostModal from './SharePostModal';
 import { webSocketService } from '../../services/websocket';
 import { useToast } from '../../context/ToastContext';
 import PostOptionsMenu from './PostOptionsMenu';
+import { useNavigate } from 'react-router-dom';
 
 // Component PostContent được memo để tránh render lại không cần thiết
 const PostContent = memo(({ post }) => {
@@ -271,15 +272,16 @@ const Comment = ({ comment, postId, onReply, onDelete, currentUser, userProfile,
 
 // Component PostItem để render từng bài đăng, được memo
 const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComment, handleShareClick, handleDeletePost, handleEditPost, handleDeleteComment, commentInputs, setCommentInputs, isLoading }) => {
+  const navigate = useNavigate();
   const getFullImageUrl = useCallback((path) => {
     if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http') || path.startsWith('blob')) return path;
     return `${API_ENDPOINTS.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
   }, []);
 
-  if (!currentUser) {
-    return null;
-  }
+  const handleAvatarClick = (userId) => {
+    navigate(`/profile/${userId}`);
+  };
 
   // Kiểm tra xem người dùng hiện tại có phải là chủ sở hữu bài viết không
   const isPostOwner = currentUser?.id === post.userId;
@@ -289,6 +291,10 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
   const [editContent, setEditContent] = useState(post.content);
   const [editPrivacy, setEditPrivacy] = useState(post.privacy || 'PUBLIC');
 
+  if (!currentUser) {
+    return null;
+  }
+
   return (
     <div id={`post-${post.id}`} key={post.id} className="card mb-3">
       <div className="card-body">
@@ -297,10 +303,15 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
             src={getFullImageUrl(post.user?.avatar)}
             alt="Người dùng"
             className="rounded-circle"
-            style={{ width: '40px', height: '40px' }}
+            style={{ width: '40px', height: '40px', cursor: 'pointer' }}
+            onClick={() => handleAvatarClick(post.user?.id)}
           />
           <div className="flex-grow-1">
-            <div className="fw-bold">
+            <div 
+              className="fw-bold"
+              style={{ cursor: 'pointer' }}
+              onClick={() => handleAvatarClick(post.user?.id)}
+            >
               {post.user ? `${post.user.firstName} ${post.user.lastName}` : 'Người dùng không xác định'}
             </div>
             <small className="text-secondary">
@@ -438,21 +449,30 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
               }}
             />
             <div className="flex-grow-1 position-relative">
-              <input
-                type="text"
-                className="form-control rounded-pill comment-input"
-                placeholder="Viết bình luận..."
-                value={commentInputs[post.id] || ''}
-                onChange={(e) => setCommentInputs(prev => ({
-                  ...prev,
-                  [post.id]: e.target.value
-                }))}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !isLoading[post.id]) {
-                    handleComment(post.id, e.target.value);
-                  }
-                }}
-              />
+              <div className="d-flex align-items-center">
+                <input
+                  type="text"
+                  className="form-control rounded-pill comment-input"
+                  placeholder="Viết bình luận..."
+                  value={commentInputs[post.id] || ''}
+                  onChange={(e) => setCommentInputs(prev => ({
+                    ...prev,
+                    [post.id]: e.target.value
+                  }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !isLoading[post.id]) {
+                      handleComment(post.id, e.target.value);
+                    }
+                  }}
+                />
+                <button
+                  className="btn btn-link text-primary ms-2"
+                  onClick={() => !isLoading[post.id] && handleComment(post.id, commentInputs[post.id])}
+                  disabled={isLoading[post.id] || !commentInputs[post.id]?.trim()}
+                >
+                  <i className="bi bi-send-fill"></i>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -469,9 +489,67 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
   const [selectedPost, setSelectedPost] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const listRef = useRef(null);
-  const subscribedPosts = useRef(new Set()); // Track subscribed posts
+  const subscribedPosts = useRef(new Set());
   const [isLoggedIn, setIsLoggedIn] = useState(!!currentUser);
   const { showSuccess, showError } = useToast();
+
+  // Sort posts by createdAt in descending order (newest first)
+  useEffect(() => {
+    if (Array.isArray(initialPosts)) {
+      const sortedPosts = [...initialPosts].sort((a, b) => {
+        const dateA = new Date(a.createdAt);
+        const dateB = new Date(b.createdAt);
+        return dateB - dateA;
+      });
+      setPosts(sortedPosts.filter(post => post && post.id));
+    }
+  }, [initialPosts]);
+
+  // Sort posts when receiving WebSocket updates
+  const handleWebSocketUpdate = useCallback((updatedPost) => {
+    setPosts(prevPosts => {
+      const newPosts = prevPosts.map(post => 
+        post.id === updatedPost.id ? updatedPost : post
+      );
+      return newPosts.sort((a, b) => {
+        const dateA = new Date(a.createdAt);
+        const dateB = new Date(b.createdAt);
+        return dateB - dateA;
+      });
+    });
+  }, []);
+
+  // Handle post highlighting when postId is in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const postId = urlParams.get('postId');
+    
+    if (postId) {
+      // Check if we're coming from a notification click
+      const isFromNotification = document.referrer.includes('/notifications') || 
+                               document.referrer.includes('/friends') ||
+                               document.referrer.includes('/profile');
+      
+      if (isFromNotification) {
+        // Wait for posts to be loaded
+        const checkAndHighlightPost = () => {
+          const postElement = document.getElementById(`post-${postId}`);
+          if (postElement) {
+            postElement.scrollIntoView({ behavior: 'smooth' });
+            postElement.classList.add('highlight-post');
+            setTimeout(() => {
+              postElement.classList.remove('highlight-post');
+            }, 2000);
+          } else {
+            // If post not found yet, try again after a short delay
+            setTimeout(checkAndHighlightPost, 100);
+          }
+        };
+        
+        checkAndHighlightPost();
+      }
+    }
+  }, [posts]); // Re-run when posts change
 
   // Fetch user profile to get avatar
   useEffect(() => {
@@ -496,13 +574,6 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
 
     fetchUserProfile();
   }, [currentUser?.id]);
-
-  // Validate posts when initialPosts changes
-  useEffect(() => {
-    if (Array.isArray(initialPosts)) {
-      setPosts(initialPosts.filter(post => post && post.id));
-    }
-  }, [initialPosts]);
 
   const handleShareSuccess = (newPost) => {
     setPosts(prevPosts => [newPost, ...prevPosts]);
@@ -549,61 +620,8 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
         throw new Error('Lỗi kết nối mạng');
       }
 
-      // Thêm comment mới vào UI ngay lập tức với thông tin người dùng
-      const newComment = {
-        id: Date.now().toString(), // ID tạm thời cho đến khi WebSocket cập nhật
-        content: content,
-        createdAt: new Date().toISOString(),
-        userId: currentUser.id,
-        parentId: parentId,
-        user: {
-          id: currentUser.id,
-          firstName: currentUser.firstName,
-          lastName: currentUser.lastName,
-          avatar: userProfile?.avatar || null
-        }
-      };
-
-      setPosts(prevPosts => {
-        return prevPosts.map(post => {
-          if (post.id === postId) {
-            if (parentId) {
-              // Xử lý trả lời comment
-              const updateReplies = (comments) => {
-                return comments.map(comment => {
-                  if (comment.id === parentId) {
-                    return {
-                      ...comment,
-                      replies: [...(comment.replies || []), newComment]
-                    };
-                  }
-                  if (comment.replies) {
-                    return {
-                      ...comment,
-                      replies: updateReplies(comment.replies)
-                    };
-                  }
-                  return comment;
-                });
-              };
-
-              return {
-                ...post,
-                comments: updateReplies(post.comments || [])
-              };
-            } else {
-              // Xử lý comment mới
-              return {
-                ...post,
-                comments: [...(post.comments || []), newComment]
-              };
-            }
-          }
-          return post;
-        });
-      });
-
-      // Xóa nội dung input sau khi comment thành công
+      // Không cần thêm comment vào UI ngay lập tức vì sẽ nhận update qua WebSocket
+      // Chỉ cần xóa nội dung input
       if (!parentId) {
         setCommentInputs(prev => ({ ...prev, [postId]: '' }));
       }
@@ -622,7 +640,7 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
 
   // Xử lý xóa bài viết
   const handleDeletePost = async (postId) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa bài viết này?')) {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa bài viết này?')) {
       return;
     }
 
@@ -702,7 +720,7 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
 
   // Xử lý xóa bình luận
   const handleDeleteComment = async (postId, commentId) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa bình luận này?')) {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa bình luận này?')) {
       return;
     }
 
@@ -769,27 +787,7 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
             console.log(`PostList: Subscribing to post ${post.id}`);
             currentSubscribedPosts.add(post.id);
             try {
-              await webSocketService.subscribeToPost(post.id, updatedPost => {
-                if (!isComponentMounted) return;
-
-                console.log(`PostList: Received update for post ${post.id}`);
-                setPosts(prevPosts => {
-                  const newPosts = [...prevPosts];
-                  const index = newPosts.findIndex(p => p?.id === updatedPost.id);
-                  if (index !== -1) {
-                    newPosts[index] = {
-                      ...newPosts[index],
-                      ...updatedPost,
-                      user: updatedPost.user || newPosts[index].user,
-                      comments: (updatedPost.comments || []).map(comment => ({
-                        ...comment,
-                        user: comment.user || newPosts[index].comments?.find(c => c.userId === comment.userId)?.user
-                      }))
-                    };
-                  }
-                  return newPosts;
-                });
-              });
+              await webSocketService.subscribeToPost(post.id, handleWebSocketUpdate);
             } catch (error) {
               console.error(`PostList: Failed to subscribe to post ${post.id}:`, error);
             }
@@ -812,17 +810,13 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
         clearTimeout(retryTimeout);
       }
 
-      // Only unsubscribe from posts, don't disconnect the WebSocket
       currentSubscribedPosts.forEach(postId => {
         console.log(`PostList: Unsubscribing from post ${postId} during cleanup`);
         webSocketService.unsubscribeFromPost(postId);
       });
       currentSubscribedPosts.clear();
-
-      // Don't disconnect the WebSocket as it might be used by other components
-      // webSocketService.disconnect();
     };
-  }, [posts]); // Consider changing this dependency if posts updates too frequently
+  }, [posts, handleWebSocketUpdate]);
 
   // Cập nhật isLoggedIn khi currentUser thay đổi
   useEffect(() => {
