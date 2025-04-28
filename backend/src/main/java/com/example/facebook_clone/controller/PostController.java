@@ -282,8 +282,13 @@ public class PostController {
             Post savedPost = postRepository.save(post);
             populatePostData(savedPost);
 
-            // Send WebSocket update
-            messagingTemplate.convertAndSend("/topic/posts/" + postId, savedPost);
+            // Send WebSocket update to all users EXCEPT the commenter
+            messagingTemplate.convertAndSendToUser(
+                postId, 
+                "/topic/posts", 
+                savedPost,
+                Map.of("excludeUserId", request.getUserId())
+            );
 
             // Tạo thông báo nếu đây là bình luận mới (không phải reply)
             if (request.getParentId() == null || request.getParentId().isEmpty()) {
