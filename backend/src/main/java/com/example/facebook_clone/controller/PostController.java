@@ -250,6 +250,20 @@ public class PostController {
             Post post = postRepository.findById(postId)
                     .orElseThrow(() -> new RuntimeException("Post not found"));
 
+            // Kiểm tra độ sâu của comment
+            if (request.getParentId() != null && !request.getParentId().isEmpty()) {
+                Comment parentComment = findCommentById(post.getComments(), request.getParentId());
+                if (parentComment == null) {
+                    return ResponseEntity.badRequest().body("Parent comment not found");
+                }
+
+                // Tính độ sâu của comment
+                int depth = calculateCommentDepth(post.getComments(), request.getParentId());
+                if (depth >= 3) { // 3 là max depth cho phép (tổng 3 tầng: 0,1,2,3)
+                    return ResponseEntity.badRequest().body("Maximum reply depth reached");
+                }
+            }
+
             Comment comment = new Comment();
             comment.setId(UUID.randomUUID().toString());
             comment.setUserId(request.getUserId());
@@ -259,10 +273,6 @@ public class PostController {
             // Xử lý reply comment
             if (request.getParentId() != null && !request.getParentId().isEmpty()) {
                 Comment parentComment = findCommentById(post.getComments(), request.getParentId());
-                if (parentComment == null) {
-                    return ResponseEntity.badRequest().body("Parent comment not found");
-                }
-
                 comment.setParentId(request.getParentId());
                 if (parentComment.getReplies() == null) {
                     parentComment.setReplies(new ArrayList<>());
@@ -332,6 +342,19 @@ public class PostController {
             }
         }
         return null;
+    }
+
+    // Thêm method mới để tính độ sâu của comment
+    private int calculateCommentDepth(List<Comment> comments, String commentId) {
+        int depth = 0;
+        Comment comment = findCommentById(comments, commentId);
+        
+        while (comment != null && comment.getParentId() != null) {
+            depth++;
+            comment = findCommentById(comments, comment.getParentId());
+        }
+        
+        return depth;
     }
 
     @PostMapping("/share")

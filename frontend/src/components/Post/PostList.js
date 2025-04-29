@@ -131,6 +131,11 @@ const Comment = ({ comment, postId, onReply, onDelete, currentUser, userProfile,
   const [isLoading, setIsLoading] = useState(false);
   const [showAllReplies, setShowAllReplies] = useState(false);
 
+  const MAX_REPLY_DEPTH = 4; // Giới hạn độ sâu tối đa (0,1,2,3 = 4 tầng)
+
+  // Kiểm tra xem có thể reply tiếp không
+  const canReply = depth < MAX_REPLY_DEPTH;
+
   // Kiểm tra xem người dùng hiện tại có phải là chủ sở hữu bình luận không
   const isCommentOwner = currentUser?.id === comment.userId;
 
@@ -139,7 +144,7 @@ const Comment = ({ comment, postId, onReply, onDelete, currentUser, userProfile,
   }
 
   const MAX_VISIBLE_REPLIES = 0; // Mặc định không hiển thị phản hồi con
-  const MAX_DEPTH = 6; // Giới hạn độ sâu của nested replies để tránh quá nhiều indent
+  const MAX_DEPTH = 4; // Giới hạn độ sâu của nested replies để tránh quá nhiều indent
 
   const handleReply = async () => {
     if (!replyContent.trim() || isLoading) return;
@@ -149,6 +154,9 @@ const Comment = ({ comment, postId, onReply, onDelete, currentUser, userProfile,
       await onReply(postId, replyContent, comment.id);
       setReplyContent('');
       setShowReplyInput(false);
+    } catch (error) {
+      // Không cần hiển thị alert ở đây nữa vì đã được xử lý ở handleComment
+      console.error('Error in handleReply:', error);
     } finally {
       setIsLoading(false);
     }
@@ -303,7 +311,7 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
             src={getFullImageUrl(post.user?.avatar)}
             alt="Người dùng"
             className="rounded-circle"
-            style={{ width: '40px', height: '40px', cursor: 'pointer' }}
+            style={{ width: '40px', height: '40px', objectFit: 'cover', cursor: 'pointer' }}
             onClick={() => handleAvatarClick(post.user?.id)}
           />
           <div className="flex-grow-1">
@@ -532,22 +540,22 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
       
       if (isFromNotification) {
         // Wait for posts to be loaded
-        const checkAndHighlightPost = () => {
+      const checkAndHighlightPost = () => {
           const postElement = document.getElementById(`post-${postId}`);
-          if (postElement) {
-            postElement.scrollIntoView({ behavior: 'smooth' });
-            postElement.classList.add('highlight-post');
-            setTimeout(() => {
-              postElement.classList.remove('highlight-post');
-            }, 2000);
-          } else {
+        if (postElement) {
+          postElement.scrollIntoView({ behavior: 'smooth' });
+          postElement.classList.add('highlight-post');
+          setTimeout(() => {
+            postElement.classList.remove('highlight-post');
+          }, 2000);
+        } else {
             // If post not found yet, try again after a short delay
-            setTimeout(checkAndHighlightPost, 100);
-          }
-        };
-        
-        checkAndHighlightPost();
-      }
+          setTimeout(checkAndHighlightPost, 100);
+        }
+      };
+      
+      checkAndHighlightPost();
+    }
     }
   }, [posts]); // Re-run when posts change
 
@@ -616,8 +624,14 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
         })
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Lỗi kết nối mạng');
+        // Kiểm tra message từ backend
+        if (data === "Maximum reply depth reached") {
+          throw new Error("Maximum reply depth reached");
+        }
+        throw new Error(data || 'Lỗi kết nối mạng');
       }
 
       // Không cần thêm comment vào UI ngay lập tức vì sẽ nhận update qua WebSocket
@@ -627,7 +641,12 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
       }
     } catch (error) {
       console.error('Lỗi khi bình luận:', error);
-      alert('Không thể thêm bình luận. Vui lòng thử lại.');
+      if (error.message === "Maximum reply depth reached") {
+        alert('Không thể trả lời thêm. Đã đạt giới hạn độ sâu của bình luận.');
+      } else {
+        alert("Đã đạt giới hạn phản hồi bình luận");
+      }
+      throw error; // Thêm dòng này để propagate error lên component cha
     } finally {
       setIsLoading(prev => ({ ...prev, [postId]: false }));
     }
