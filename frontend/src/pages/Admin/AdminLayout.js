@@ -11,7 +11,7 @@ const AdminLayout = ({ children }) => {
       <Container fluid className="flex-grow-1">
         <Row>
           <Col md={12} className="main-content">
-            <Container className="mt-4">{children}</Container>
+            <Container className="mt-4 admin-content-container">{children}</Container>
           </Col>
         </Row>
       </Container>
