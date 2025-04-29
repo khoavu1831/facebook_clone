@@ -158,6 +158,38 @@ public class PostController {
         return ResponseEntity.ok(posts);
     }
 
+    // Search posts by content
+    @GetMapping("/search")
+    public ResponseEntity<List<Post>> searchPosts(@RequestParam String query, @RequestParam(required = false) String userId) {
+        List<Post> allPosts;
+
+        if (userId != null) {
+            // Lấy tất cả bài viết công khai và bài viết riêng tư của người dùng hiện tại
+            allPosts = postRepository.findAll().stream()
+                .filter(post ->
+                    post.getUserId().equals(userId) || // Bài viết của mình
+                    "PUBLIC".equals(post.getPrivacy()) // Bài viết công khai của người khác
+                )
+                .collect(Collectors.toList());
+        } else {
+            // Nếu không có userId, chỉ lấy bài viết công khai
+            allPosts = postRepository.findAll().stream()
+                .filter(post -> "PUBLIC".equals(post.getPrivacy()))
+                .collect(Collectors.toList());
+        }
+
+        // Lọc bài viết theo nội dung chứa query (không phân biệt chữ hoa/thường)
+        List<Post> filteredPosts = allPosts.stream()
+            .filter(post -> post.getContent() != null &&
+                post.getContent().toLowerCase().contains(query.toLowerCase()))
+            .collect(Collectors.toList());
+
+        // Populate user data cho các bài viết
+        filteredPosts.forEach(this::populatePostData);
+
+        return ResponseEntity.ok(filteredPosts);
+    }
+
     // Add endpoint to get a single post by ID
     @GetMapping("/{postId}")
     public ResponseEntity<?> getPostById(@PathVariable String postId, @RequestParam(required = false) String viewerId) {

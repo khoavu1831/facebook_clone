@@ -4,6 +4,11 @@
     flex-direction: column;
 }
 
+.admin-content-container {
+    max-width: 1400px !important;
+    width: 95% !important;
+}
+
 .main-content {
     flex: 1;
 }
@@ -38,6 +43,33 @@
 .stat-table td,
 .content-table td {
     color: #333;
+    vertical-align: middle;
+}
+
+.content-table .btn {
+    padding: 0.375rem 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+}
+
+/* Ensure table is responsive */
+.content-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 800px;
+}
+
+/* Make sure the table container allows horizontal scrolling if needed */
+.card-body {
+    overflow-x: auto;
+}
+
+/* Ensure text doesn't overflow */
+.content-table td {
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .stat-table tbody tr:nth-child(1) td {

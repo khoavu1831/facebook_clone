@@ -4,11 +4,15 @@ import { logout } from "../utils/auth";
 import NotificationDropdown from "./Notification/NotificationDropdown";
 import { useUser } from "../contexts/UserContext";
 import { API_ENDPOINTS } from "../config/api";
+import { useToast } from "../context/ToastContext";
+import "./Header.css";
 
 function Header() {
   const navigate = useNavigate();
   const { currentUser } = useUser(); // Use UserContext instead of local state
   const [avatarKey, setAvatarKey] = useState(Date.now());
+  const [searchQuery, setSearchQuery] = useState("");
+  const { showError } = useToast();
 
   // Force re-render when currentUser changes
   useEffect(() => {
@@ -24,6 +28,15 @@ function Header() {
     navigate("/login");
   };
 
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) {
+      showError("Vui lòng nhập từ khóa tìm kiếm");
+      return;
+    }
+    navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+  };
+
   return (
     <header className="bg-white shadow-sm fixed-top">
       <div className="container-fluid d-flex align-items-center justify-content-between py-2">
@@ -36,12 +49,15 @@ function Header() {
               style={{ width: "40px", height: "40px" }}
             />
           </Link>
-          <input
-            type="text"
-            className="form-control rounded-pill"
-            placeholder="Search Facebook"
-            style={{ width: "200px" }}
-          />
+          <form onSubmit={handleSearch} className="d-flex search-input-container">
+            <input
+              type="text"
+              className="form-control rounded-pill search-input"
+              placeholder="Tìm kiếm bài viết"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </form>
         </div>
 
         {/* Center: Navigation Icons

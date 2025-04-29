@@ -11,6 +11,7 @@ import Home from './pages/Home';
 import Profile from './pages/Profile/Profile';
 import Friends from './pages/Friends/Friends';
 import PostDetail from './pages/PostDetail/PostDetail';
+import SearchResults from './pages/Search/SearchResults';
 import Auth from './components/Auth/Auth';
 import Admin from './pages/Admin/Admin';
 import AdminAuth from './components/AdminAuth/AdminAuth';
@@ -55,6 +56,7 @@ function App() {
                         <Route path="/profile/:userId" element={<Profile />} />
                         <Route path="/friends" element={<Friends />} />
                         <Route path="/posts/:postId" element={<PostDetail />} />
+                        <Route path="/search" element={<SearchResults />} />
                       </Routes>
                       <ChatForm />
                       <ChatWindowsContainer />
