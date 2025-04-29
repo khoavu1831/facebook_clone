@@ -239,6 +239,26 @@
   /* Sử dụng mũi tên mặc định của trình duyệt */
 }
 
+/* Privacy icon styles */
+.bi-globe, .bi-lock-fill {
+  font-size: 14px;
+  margin-right: 4px;
+}
+
+.bi-globe {
+  color: #65676b;
+}
+
+.bi-lock-fill {
+  color: #65676b;
+  font-size: 12px;
+}
+
+.privacy-text {
+  font-size: 12px;
+  color: #65676b;
+}
+
 /* Fix dropdown display issues */
 .form-select option {
   background-color: white;
@@ -417,4 +437,56 @@
 
 .media-grid[data-count="10"] .media-item:first-child {
   aspect-ratio: 1/1;
+}
+
+/* Edit post styles */
+.edit-post-container {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.edit-post-container textarea {
+  resize: vertical;
+  min-height: 80px;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  padding: 10px;
+  font-family: 'Poppins', sans-serif;
+}
+
+.edit-post-container textarea:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.edit-post-container .media-grid {
+  margin-top: 10px;
+}
+
+.edit-post-container .media-item {
+  border: 1px solid #dee2e6;
+  position: relative;
+}
+
+.edit-post-container .btn-danger.position-absolute {
+  opacity: 0.8;
+  transition: opacity 0.2s;
+  z-index: 10;
+}
+
+.edit-post-container .btn-danger.position-absolute:hover {
+  opacity: 1;
+}
+
+.edit-post-container .btn-outline-secondary {
+  border-color: #ced4da;
+  color: #6c757d;
+  transition: all 0.2s;
+}
+
+.edit-post-container .btn-outline-secondary:hover {
+  background-color: #f0f2f5;
+  border-color: #adb5bd;
 }
