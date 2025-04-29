@@ -417,11 +417,11 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
               disabled={isLoading[`edit_${post.id}`]}
             ></textarea>
 
-            {/* Hiển thị hình ảnh hiện có */}
-            {keepImages.length > 0 && (
+            {/* Hiển thị tất cả media (cả hiện có và mới thêm) */}
+            {(keepImages.length > 0 || keepVideos.length > 0 || editMediaPreview.length > 0) && (
               <div className="mb-3">
-                <p className="text-muted small mb-2">Hình ảnh hiện tại:</p>
-                <div className="media-grid mb-2" data-count={keepImages.length}>
+                <div className="media-grid mb-2" data-count={keepImages.length + keepVideos.length + editMediaPreview.length}>
+                  {/* Hiển thị hình ảnh hiện có */}
                   {keepImages.map((image, index) => (
                     <div key={`existing-img-${index}`} className="media-item position-relative">
                       <img
@@ -440,15 +440,8 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
                       </button>
                     </div>
                   ))}
-                </div>
-              </div>
-            )}
 
-            {/* Hiển thị video hiện có */}
-            {keepVideos.length > 0 && (
-              <div className="mb-3">
-                <p className="text-muted small mb-2">Video hiện tại:</p>
-                <div className="media-grid mb-2" data-count={keepVideos.length}>
+                  {/* Hiển thị video hiện có */}
                   {keepVideos.map((video, index) => (
                     <div key={`existing-video-${index}`} className="media-item position-relative">
                       <video
@@ -467,15 +460,8 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
                       </button>
                     </div>
                   ))}
-                </div>
-              </div>
-            )}
 
-            {/* Hiển thị media mới thêm vào */}
-            {editMediaPreview.length > 0 && (
-              <div className="mb-3">
-                <p className="text-muted small mb-2">Hình ảnh/video mới:</p>
-                <div className="media-grid mb-2" data-count={editMediaPreview.length}>
+                  {/* Hiển thị media mới thêm vào */}
                   {editMediaPreview.map((preview, index) => (
                     <div key={`new-media-${index}`} className="media-item position-relative">
                       {editMedia[index].type.includes('video') ? (
