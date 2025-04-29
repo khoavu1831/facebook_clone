@@ -98,7 +98,7 @@ const ManageUsers = () => {
     <AdminLayout>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="text-xl font-semibold">Quản lý người dùng</h2>
-        <div className="d-flex">
+        <div className="d-flex" style={{ width: '28%' }}>
           <InputGroup className="w-100">
             <InputGroup.Text>
               <FaSearch />
@@ -123,75 +123,71 @@ const ManageUsers = () => {
         </div>
       ) : (
         <>
-          <Card className="shadow-sm mb-4">
-            <Card.Body className="p-0">
-              <Table hover responsive className="content-table mb-0">
-                <thead className="bg-light">
-                  <tr>
-                    <th className="text-center" style={{ width: '8%' }}>#</th>
-                    <th style={{ width: '42%' }}>Tên người dùng</th>
-                    <th style={{ width: '35%' }}>Email</th>
-                    <th className="text-center" style={{ width: '15%' }}>Thao tác</th>
+          <Table hover responsive className="content-table mb-4">
+            <thead className="bg-light">
+              <tr>
+                <th className="text-center" style={{ width: '8%' }}>#</th>
+                <th style={{ width: '42%' }}>Tên người dùng</th>
+                <th style={{ width: '35%' }}>Email</th>
+                <th className="text-center" style={{ width: '15%' }}>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentUsers.length > 0 ? (
+                currentUsers.map((user) => (
+                  <tr key={user.id} className="align-middle">
+                    <td className="text-center">{user.id}</td>
+                    <td>
+                      <div className="d-flex align-items-center">
+                        {user.avatar ? (
+                          <img
+                            src={`http://localhost:8080${user.avatar}`}
+                            alt={`${user.firstName} ${user.lastName}`}
+                            className="rounded-circle me-2"
+                            style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <FaUserCircle size={40} className="text-secondary me-2" />
+                        )}
+                        <div>
+                          <div className="fw-bold">{`${user.firstName} ${user.lastName}`}</div>
+                          <small className="text-muted">{user.role || 'USER'}</small>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{user.email}</td>
+                    <td className="text-center">
+                      <div className="d-flex justify-content-center">
+                        <Button
+                          variant="info"
+                          size="sm"
+                          className="me-2"
+                          onClick={() => openDetailsModal(user)}
+                          title="Xem chi tiết"
+                        >
+                          <FaInfoCircle />
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => confirmDeleteUser(user)}
+                          title="Xóa"
+                        >
+                          <FaTrashAlt />
+                        </Button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {currentUsers.length > 0 ? (
-                    currentUsers.map((user) => (
-                      <tr key={user.id} className="align-middle">
-                        <td className="text-center">{user.id}</td>
-                        <td>
-                          <div className="d-flex align-items-center">
-                            {user.avatar ? (
-                              <img
-                                src={`http://localhost:8080${user.avatar}`}
-                                alt={`${user.firstName} ${user.lastName}`}
-                                className="rounded-circle me-2"
-                                style={{ width: '40px', height: '40px', objectFit: 'cover' }}
-                              />
-                            ) : (
-                              <FaUserCircle size={40} className="text-secondary me-2" />
-                            )}
-                            <div>
-                              <div className="fw-bold">{`${user.firstName} ${user.lastName}`}</div>
-                              <small className="text-muted">{user.role || 'USER'}</small>
-                            </div>
-                          </div>
-                        </td>
-                        <td>{user.email}</td>
-                        <td className="text-center">
-                          <div className="d-flex justify-content-center">
-                            <Button
-                              variant="info"
-                              size="sm"
-                              className="me-2"
-                              onClick={() => openDetailsModal(user)}
-                              title="Xem chi tiết"
-                            >
-                              <FaInfoCircle />
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => confirmDeleteUser(user)}
-                              title="Xóa"
-                            >
-                              <FaTrashAlt />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="4" className="text-center py-4">
-                        {searchTerm ? 'Không tìm thấy người dùng phù hợp' : 'Không có người dùng nào'}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </Table>
-            </Card.Body>
-          </Card>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="4" className="text-center py-4">
+                    {searchTerm ? 'Không tìm thấy người dùng phù hợp' : 'Không có người dùng nào'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
 
           {/* Pagination */}
           {filteredUsers.length > usersPerPage && (
@@ -207,8 +203,6 @@ const ManageUsers = () => {
           )}
         </>
       )}
-
-
 
       {/* Details Modal */}
       <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} size="lg">

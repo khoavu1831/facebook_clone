@@ -77,8 +77,6 @@ const ManagePosts = () => {
     }
   };
 
-
-
   // Open details modal
   const openDetailsModal = (post) => {
     setCurrentPost(post);
@@ -99,7 +97,7 @@ const ManagePosts = () => {
     <AdminLayout>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="text-xl font-semibold">Quản lý bài viết</h2>
-        <div className="d-flex">
+        <div className="d-flex" style={{ width: '28%' }}>
           <InputGroup className="w-100">
             <InputGroup.Text>
               <FaSearch />
@@ -124,111 +122,107 @@ const ManagePosts = () => {
         </div>
       ) : (
         <>
-          <Card className="shadow-sm mb-4">
-            <Card.Body className="p-0">
-              <Table hover responsive className="content-table mb-0">
-                <thead className="bg-light">
-                  <tr>
-                    <th className="text-center" style={{ width: '8%' }}>#</th>
-                    <th style={{ width: '55%' }}>Nội dung</th>
-                    <th style={{ width: '22%' }}>Tác giả</th>
-                    <th className="text-center" style={{ width: '15%' }}>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentPosts.length > 0 ? (
-                    currentPosts.map((post) => (
-                      <tr key={post.id} className="align-middle">
-                        <td className="text-center">{post.id}</td>
-                        <td>
-                          <div className="d-flex align-items-center">
-                            {post.images && post.images.length > 0 ? (
-                              <img
-                                src={`http://localhost:8080${post.images[0]}`}
-                                alt="Ảnh bài viết"
-                                className="rounded me-2"
-                                style={{ width: '40px', height: '40px', objectFit: 'cover' }}
-                              />
-                            ) : (
-                              <div className="bg-light rounded me-2 d-flex align-items-center justify-content-center"
-                                   style={{ width: '40px', height: '40px' }}>
-                                <FaImage className="text-secondary" />
-                              </div>
+          <Table hover responsive className="content-table mb-4">
+            <thead className="bg-light">
+              <tr>
+                <th className="text-center" style={{ width: '8%' }}>#</th>
+                <th style={{ width: '55%' }}>Nội dung</th>
+                <th style={{ width: '22%' }}>Tác giả</th>
+                <th className="text-center" style={{ width: '15%' }}>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentPosts.length > 0 ? (
+                currentPosts.map((post) => (
+                  <tr key={post.id} className="align-middle">
+                    <td className="text-center">{post.id}</td>
+                    <td>
+                      <div className="d-flex align-items-center">
+                        {post.images && post.images.length > 0 ? (
+                          <img
+                            src={`http://localhost:8080${post.images[0]}`}
+                            alt="Ảnh bài viết"
+                            className="rounded me-2"
+                            style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div className="bg-light rounded me-2 d-flex align-items-center justify-content-center"
+                               style={{ width: '40px', height: '40px' }}>
+                            <FaImage className="text-secondary" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="fw-bold text-truncate" style={{ maxWidth: '600px' }}>
+                            {post.content || 'Không có nội dung'}
+                          </div>
+                          <small className="text-muted d-flex align-items-center">
+                            {post.images && post.images.length > 0 && (
+                              <span className="me-2"><FaImage /> {post.images.length}</span>
                             )}
-                            <div>
-                              <div className="fw-bold text-truncate" style={{ maxWidth: '600px' }}>
-                                {post.content || 'Không có nội dung'}
-                              </div>
-                              <small className="text-muted d-flex align-items-center">
-                                {post.images && post.images.length > 0 && (
-                                  <span className="me-2"><FaImage /> {post.images.length}</span>
-                                )}
-                                {post.videos && post.videos.length > 0 && (
-                                  <span className="me-2"><FaVideo /> {post.videos.length}</span>
-                                )}
-                                {post.comments && (
-                                  <span className="me-2"><FaComment /> {post.comments.length}</span>
-                                )}
-                                {post.likes && (
-                                  <span><FaHeart /> {post.likes.length}</span>
-                                )}
-                              </small>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          {post.user ? (
-                            <div className="d-flex align-items-center">
-                              {post.user.avatar ? (
-                                <img
-                                  src={`http://localhost:8080${post.user.avatar}`}
-                                  alt={`${post.user.firstName} ${post.user.lastName}`}
-                                  className="rounded-circle me-2"
-                                  style={{ width: '30px', height: '30px', objectFit: 'cover' }}
-                                />
-                              ) : (
-                                <FaUserCircle size={30} className="text-secondary me-2" />
-                              )}
-                              <span>{`${post.user.firstName} ${post.user.lastName}`}</span>
-                            </div>
+                            {post.videos && post.videos.length > 0 && (
+                              <span className="me-2"><FaVideo /> {post.videos.length}</span>
+                            )}
+                            {post.comments && (
+                              <span className="me-2"><FaComment /> {post.comments.length}</span>
+                            )}
+                            {post.likes && (
+                              <span><FaHeart /> {post.likes.length}</span>
+                            )}
+                          </small>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      {post.user ? (
+                        <div className="d-flex align-items-center">
+                          {post.user.avatar ? (
+                            <img
+                              src={`http://localhost:8080${post.user.avatar}`}
+                              alt={`${post.user.firstName} ${post.user.lastName}`}
+                              className="rounded-circle me-2"
+                              style={{ width: '30px', height: '30px', objectFit: 'cover' }}
+                            />
                           ) : (
-                            'Unknown'
+                            <FaUserCircle size={30} className="text-secondary me-2" />
                           )}
-                        </td>
-                        <td className="text-center">
-                          <div className="d-flex justify-content-center">
-                            <Button
-                              variant="info"
-                              size="sm"
-                              className="me-2"
-                              onClick={() => openDetailsModal(post)}
-                              title="Xem chi tiết"
-                            >
-                              <FaInfoCircle />
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => confirmDeletePost(post)}
-                              title="Xóa"
-                            >
-                              <FaTrashAlt />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="4" className="text-center py-4">
-                        {searchTerm ? 'Không tìm thấy bài viết phù hợp' : 'Không có bài viết nào'}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </Table>
-            </Card.Body>
-          </Card>
+                          <span>{`${post.user.firstName} ${post.user.lastName}`}</span>
+                        </div>
+                      ) : (
+                        'Unknown'
+                      )}
+                    </td>
+                    <td className="text-center">
+                      <div className="d-flex justify-content-center">
+                        <Button
+                          variant="info"
+                          size="sm"
+                          className="me-2"
+                          onClick={() => openDetailsModal(post)}
+                          title="Xem chi tiết"
+                        >
+                          <FaInfoCircle />
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => confirmDeletePost(post)}
+                          title="Xóa"
+                        >
+                          <FaTrashAlt />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="4" className="text-center py-4">
+                    {searchTerm ? 'Không tìm thấy bài viết phù hợp' : 'Không có bài viết nào'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
 
           {/* Pagination */}
           {filteredPosts.length > postsPerPage && (
@@ -244,8 +238,6 @@ const ManagePosts = () => {
           )}
         </>
       )}
-
-
 
       {/* Details Modal */}
       <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} size="lg">
