@@ -109,7 +109,7 @@ public class PostController {
         if (userId != null) {
             // Lấy tất cả bài viết công khai của người khác và tất cả bài viết của mình
             posts = postRepository.findAll().stream()
-                .filter(post -> 
+                .filter(post ->
                     post.getUserId().equals(userId) || // Bài viết của mình
                     "PUBLIC".equals(post.getPrivacy()) // Bài viết công khai của người khác
                 )
@@ -143,7 +143,7 @@ public class PostController {
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Post>> getUserPosts(@PathVariable String userId, @RequestParam(required = false) String viewerId) {
         List<Post> posts;
-        
+
         if (userId.equals(viewerId)) {
             // If viewing own profile, show all posts
             posts = postRepository.findByUserId(userId);
@@ -348,12 +348,12 @@ public class PostController {
     private int calculateCommentDepth(List<Comment> comments, String commentId) {
         int depth = 0;
         Comment comment = findCommentById(comments, commentId);
-        
+
         while (comment != null && comment.getParentId() != null) {
             depth++;
             comment = findCommentById(comments, comment.getParentId());
         }
-        
+
         return depth;
     }
 
@@ -411,6 +411,97 @@ public class PostController {
             if (privacy != null) {
                 post.setPrivacy(privacy);
             }
+
+            // Lưu và populate dữ liệu
+            Post savedPost = postRepository.save(post);
+            populatePostData(savedPost);
+
+            // Gửi WebSocket update
+            messagingTemplate.convertAndSend("/topic/posts/" + id, savedPost);
+
+            return ResponseEntity.ok(savedPost);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/{id}/update-with-media")
+    public ResponseEntity<?> updatePostWithMedia(
+            @PathVariable String id,
+            @RequestParam("content") String content,
+            @RequestParam("userId") String userId,
+            @RequestParam(value = "privacy", required = false) String privacy,
+            @RequestParam(value = "images", required = false) MultipartFile[] images,
+            @RequestParam(value = "videos", required = false) MultipartFile[] videos,
+            @RequestParam(value = "keepImages", required = false) String[] keepImages,
+            @RequestParam(value = "keepVideos", required = false) String[] keepVideos) {
+
+        try {
+            // Kiểm tra xem bài viết có tồn tại không
+            Optional<Post> postOptional = postRepository.findById(id);
+            if (!postOptional.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Post post = postOptional.get();
+
+            // Kiểm tra xem người dùng có phải là chủ sở hữu không
+            if (!post.getUserId().equals(userId)) {
+                return ResponseEntity.status(403).body("You don't have permission to update this post");
+            }
+
+            // Cập nhật nội dung bài viết
+            post.setContent(content);
+
+            // Cập nhật quyền riêng tư nếu có
+            if (privacy != null) {
+                post.setPrivacy(privacy);
+            }
+
+            // Xử lý hình ảnh giữ lại
+            List<String> updatedImages = new ArrayList<>();
+            if (keepImages != null && keepImages.length > 0) {
+                for (String imagePath : keepImages) {
+                    if (post.getImages() != null && post.getImages().contains(imagePath)) {
+                        updatedImages.add(imagePath);
+                    }
+                }
+            }
+
+            // Xử lý video giữ lại
+            List<String> updatedVideos = new ArrayList<>();
+            if (keepVideos != null && keepVideos.length > 0) {
+                for (String videoPath : keepVideos) {
+                    if (post.getVideos() != null && post.getVideos().contains(videoPath)) {
+                        updatedVideos.add(videoPath);
+                    }
+                }
+            }
+
+            // Xử lý hình ảnh mới
+            if (images != null && images.length > 0) {
+                for (MultipartFile image : images) {
+                    if (!image.isEmpty()) {
+                        String fileName = fileStorageService.storeFile(image);
+                        updatedImages.add("/uploads/" + fileName);
+                    }
+                }
+            }
+
+            // Xử lý video mới
+            if (videos != null && videos.length > 0) {
+                for (MultipartFile video : videos) {
+                    if (!video.isEmpty()) {
+                        String fileName = fileStorageService.storeFile(video);
+                        updatedVideos.add("/uploads/" + fileName);
+                    }
+                }
+            }
+
+            // Cập nhật danh sách hình ảnh và video
+            post.setImages(updatedImages);
+            post.setVideos(updatedVideos);
 
             // Lưu và populate dữ liệu
             Post savedPost = postRepository.save(post);
