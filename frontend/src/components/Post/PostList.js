@@ -646,20 +646,28 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
         </div>
 
         <div className="comments-section">
-          {post.comments?.map((comment, index) => (
-            !comment.parentId && (
-              <Comment
-                key={comment.id || index}
-                comment={comment}
-                postId={post.id}
-                onReply={handleComment}
-                onDelete={handleDeleteComment}
-                currentUser={currentUser}
-                userProfile={userProfile}
-                getFullImageUrl={getFullImageUrl}
-              />
-            )
-          ))}
+          {post.comments?.slice(0, 2).map((comment, index) => (
+              !comment.parentId && (
+                <Comment
+                  key={comment.id || index}
+                  comment={comment}
+                  postId={post.id}
+                  onReply={handleComment}
+                  onDelete={handleDeleteComment}
+                  currentUser={currentUser}
+                  userProfile={userProfile}
+                  getFullImageUrl={getFullImageUrl}
+                />
+              )
+            ))}
+          {post.comments?.length > 2 && (
+            <button
+              className="btn btn-link text-primary mb-2"
+              onClick={() => navigate(`/posts/${post.id}`)}
+            >
+              Xem thêm {post.comments.length - 2} bình luận
+            </button>
+          )}
 
           {/* Input để thêm comment mới */}
           <div className="d-flex gap-2 align-items-center mt-3">

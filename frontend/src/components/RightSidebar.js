@@ -156,7 +156,7 @@ function RightSidebar() {
       {/* Header */}
       <div className="px-3 py-2 border-bottom">
         <div className="d-flex justify-content-between align-items-center">
-          <h6 className="text-muted fw-bold mb-0">Contacts</h6>
+          <h6 className="text-muted fw-bold mb-0">Người liên hệ</h6>
           <div className="d-flex gap-3">
             <i className="bi bi-camera-video text-muted"></i>
             <i className="bi bi-search text-muted"></i>
