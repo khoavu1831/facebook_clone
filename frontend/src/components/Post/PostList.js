@@ -5,10 +5,11 @@ import SharePostModal from './SharePostModal';
 import { webSocketService } from '../../services/websocket';
 import { useToast } from '../../context/ToastContext';
 import PostOptionsMenu from './PostOptionsMenu';
+import ImageViewerModal from './ImageViewerModal';
 import { useNavigate } from 'react-router-dom';
 
 // Component PostContent được memo để tránh render lại không cần thiết
-const PostContent = memo(({ post }) => {
+const PostContent = memo(({ post, onImageClick }) => {
   const isSharedPost = post.isShared || post.shared;
 
   const getFullImageUrl = (path) => {
@@ -60,7 +61,15 @@ const PostContent = memo(({ post }) => {
             {post.originalPost.images?.length > 0 && (
               <div className="media-grid mb-3" data-count={post.originalPost.images.length}>
                 {post.originalPost.images.map((image, index) => (
-                  <div key={index} className="media-item">
+                  <div
+                    key={index}
+                    className="media-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onImageClick) onImageClick(post.originalPost.images, index);
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <img
                       src={getFullMediaUrl(image)}
                       alt="Nội dung bài đăng"
@@ -92,7 +101,15 @@ const PostContent = memo(({ post }) => {
           {post.images?.length > 0 && (
             <div className="media-grid mb-3" data-count={post.images.length}>
               {post.images.map((image, index) => (
-                <div key={index} className="media-item">
+                <div
+                  key={index}
+                  className="media-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onImageClick) onImageClick(post.images, index);
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <img
                     src={getFullMediaUrl(image)}
                     alt="Nội dung bài đăng"
@@ -279,8 +296,12 @@ const Comment = ({ comment, postId, onReply, onDelete, currentUser, userProfile,
 };
 
 // Component PostItem để render từng bài đăng, được memo
-const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComment, handleShareClick, handleDeletePost, handleEditPost, handleDeleteComment, commentInputs, setCommentInputs, isLoading }) => {
+const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComment, handleShareClick, handleDeletePost, handleEditPost, handleEditPostWithMedia, handleDeleteComment, commentInputs, setCommentInputs, isLoading }) => {
   const navigate = useNavigate();
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
   const getFullImageUrl = useCallback((path) => {
     if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http') || path.startsWith('blob')) return path;
@@ -298,6 +319,75 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const [editPrivacy, setEditPrivacy] = useState(post.privacy || 'PUBLIC');
+  const [editMedia, setEditMedia] = useState([]);
+  const [editMediaPreview, setEditMediaPreview] = useState([]);
+  const [keepImages, setKeepImages] = useState(post.images || []);
+  const [keepVideos, setKeepVideos] = useState(post.videos || []);
+
+  // Xử lý khi thêm media mới khi đang chỉnh sửa
+  const handleEditMediaChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      setEditMedia(prevMedia => [...prevMedia, ...files]);
+      const newPreviews = files.map(file => URL.createObjectURL(file));
+      setEditMediaPreview(prevPreviews => [...prevPreviews, ...newPreviews]);
+    }
+  };
+
+  // Cleanup blob URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      // Xóa các URL object đã tạo để tránh memory leak
+      editMediaPreview.forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [editMediaPreview]);
+
+  // Xử lý khi xóa media đã có
+  const handleRemoveExistingImage = (index) => {
+    setKeepImages(prevImages => prevImages.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveExistingVideo = (index) => {
+    setKeepVideos(prevVideos => prevVideos.filter((_, i) => i !== index));
+  };
+
+  // Xử lý khi xóa media mới thêm vào
+  const handleRemoveNewMedia = (index) => {
+    // Lấy URL của preview để xóa
+    const previewUrl = editMediaPreview[index];
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    // Cập nhật state
+    setEditMedia(prevMedia => prevMedia.filter((_, i) => i !== index));
+    setEditMediaPreview(prevPreviews => prevPreviews.filter((_, i) => i !== index));
+  };
+
+  // Reset edit state khi hủy chỉnh sửa
+  const resetEditState = () => {
+    // Đóng form edit
+    setIsEditing(false);
+
+    // Reset các state về giá trị ban đầu
+    setEditContent(post.content);
+    setEditPrivacy(post.privacy || 'PUBLIC');
+    setEditMedia([]);
+    setEditMediaPreview([]);
+    setKeepImages(post.images || []);
+    setKeepVideos(post.videos || []);
+
+    // Xóa các URL object đã tạo để tránh memory leak
+    editMediaPreview.forEach(url => {
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    });
+  };
 
   if (!currentUser) {
     return null;
@@ -315,16 +405,22 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
             onClick={() => handleAvatarClick(post.user?.id)}
           />
           <div className="flex-grow-1">
-            <div 
+            <div
               className="fw-bold"
               style={{ cursor: 'pointer' }}
               onClick={() => handleAvatarClick(post.user?.id)}
             >
               {post.user ? `${post.user.firstName} ${post.user.lastName}` : 'Người dùng không xác định'}
             </div>
-            <small className="text-secondary">
-              {new Date(post.createdAt).toLocaleString()}
-            </small>
+            <div className="d-flex align-items-center">
+              <small className="text-secondary me-2">
+                {new Date(post.createdAt).toLocaleString()}
+              </small>
+              <small className="text-secondary d-flex align-items-center">
+                <i className={`bi ${post.privacy === 'PUBLIC' ? 'bi-globe' : 'bi-lock-fill'} me-1`}></i>
+                <span className="privacy-text d-none d-sm-inline">{post.privacy === 'PUBLIC' ? 'Công khai' : 'Riêng tư'}</span>
+              </small>
+            </div>
           </div>
 
           {isPostOwner && (
@@ -345,7 +441,99 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
               rows="3"
+              disabled={isLoading[`edit_${post.id}`]}
             ></textarea>
+
+            {/* Hiển thị tất cả media (cả hiện có và mới thêm) */}
+            {(keepImages.length > 0 || keepVideos.length > 0 || editMediaPreview.length > 0) && (
+              <div className="mb-3">
+                <div className="media-grid mb-2" data-count={keepImages.length + keepVideos.length + editMediaPreview.length}>
+                  {/* Hiển thị hình ảnh hiện có */}
+                  {keepImages.map((image, index) => (
+                    <div key={`existing-img-${index}`} className="media-item position-relative">
+                      <img
+                        src={getFullImageUrl(image)}
+                        alt={`Hình ảnh ${index + 1}`}
+                        className="img-fluid rounded"
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 rounded-circle"
+                        style={{ width: '24px', height: '24px', padding: '0', lineHeight: '24px' }}
+                        onClick={() => handleRemoveExistingImage(index)}
+                        disabled={isLoading[`edit_${post.id}`]}
+                      >
+                        <i className="bi bi-x"></i>
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Hiển thị video hiện có */}
+                  {keepVideos.map((video, index) => (
+                    <div key={`existing-video-${index}`} className="media-item position-relative">
+                      <video
+                        src={getFullImageUrl(video)}
+                        controls
+                        className="img-fluid rounded"
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 rounded-circle"
+                        style={{ width: '24px', height: '24px', padding: '0', lineHeight: '24px' }}
+                        onClick={() => handleRemoveExistingVideo(index)}
+                        disabled={isLoading[`edit_${post.id}`]}
+                      >
+                        <i className="bi bi-x"></i>
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Hiển thị media mới thêm vào */}
+                  {editMediaPreview.map((preview, index) => (
+                    <div key={`new-media-${index}`} className="media-item position-relative">
+                      {editMedia[index].type.includes('video') ? (
+                        <video
+                          src={preview}
+                          controls
+                          className="img-fluid rounded"
+                        />
+                      ) : (
+                        <img
+                          src={preview}
+                          alt={`Hình ảnh mới ${index + 1}`}
+                          className="img-fluid rounded"
+                        />
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 rounded-circle"
+                        style={{ width: '24px', height: '24px', padding: '0', lineHeight: '24px' }}
+                        onClick={() => handleRemoveNewMedia(index)}
+                        disabled={isLoading[`edit_${post.id}`]}
+                      >
+                        <i className="bi bi-x"></i>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Nút thêm media */}
+            <div className="d-flex mb-3">
+              <label htmlFor="edit-media-upload" className="btn btn-outline-secondary btn-sm">
+                <i className="bi bi-image me-1"></i> Thêm ảnh/video
+                <input
+                  id="edit-media-upload"
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleEditMediaChange}
+                  style={{ display: 'none' }}
+                  disabled={isLoading[`edit_${post.id}`]}
+                  multiple
+                />
+              </label>
+            </div>
 
             <div className="d-flex justify-content-between align-items-center mb-2">
               <div className="privacy-selector">
@@ -354,6 +542,7 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
                   value={editPrivacy}
                   onChange={(e) => setEditPrivacy(e.target.value)}
                   aria-label="Chọn quyền riêng tư"
+                  disabled={isLoading[`edit_${post.id}`]}
                 >
                   <option value="PUBLIC">Công khai</option>
                   <option value="PRIVATE">Riêng tư</option>
@@ -363,29 +552,53 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
               <div className="d-flex gap-2">
                 <button
                   className="btn btn-sm btn-secondary"
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditContent(post.content);
-                    setEditPrivacy(post.privacy || 'PUBLIC');
-                  }}
+                  onClick={resetEditState}
+                  disabled={isLoading[`edit_${post.id}`]}
                 >
                   Hủy
                 </button>
                 <button
                   className="btn btn-sm btn-primary"
-                  onClick={() => {
-                    handleEditPost(post.id, editContent, editPrivacy);
-                    setIsEditing(false);
+                  onClick={async () => {
+                    let success = false;
+                    if (editMedia.length > 0 || keepImages.length !== (post.images?.length || 0) || keepVideos.length !== (post.videos?.length || 0)) {
+                      // Nếu có thay đổi về media, sử dụng API update-with-media
+                      success = await handleEditPostWithMedia(post.id, editContent, editPrivacy, editMedia, keepImages, keepVideos);
+                    } else {
+                      // Nếu chỉ thay đổi nội dung hoặc quyền riêng tư, sử dụng API thông thường
+                      success = await handleEditPost(post.id, editContent, editPrivacy);
+                    }
+                    // Chỉ đóng form edit nếu cập nhật thành công
+                    if (success) {
+                      setIsEditing(false);
+                    }
                   }}
+                  disabled={isLoading[`edit_${post.id}`]}
                 >
-                  Lưu
+                  {isLoading[`edit_${post.id}`] ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                      Đang lưu...
+                    </>
+                  ) : 'Lưu'}
                 </button>
               </div>
             </div>
           </div>
         ) : (
-          <div>
-            <PostContent post={post} />
+          <div
+            className="post-content-container"
+            style={{ cursor: 'pointer' }}
+            onClick={() => navigate(`/posts/${post.id}`)}
+          >
+            <PostContent
+              post={post}
+              onImageClick={(images, index) => {
+                setSelectedImages(images);
+                setSelectedImageIndex(index);
+                setShowImageViewer(true);
+              }}
+            />
             {post.privacy === 'PRIVATE' && (
               <div className="privacy-indicator mt-1">
                 <small className="text-muted">
@@ -408,7 +621,10 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
             />
             <span>{post.likes?.length || 0} Thích</span>
           </button>
-          <button className="btn btn-link text-secondary">
+          <button
+            className="btn btn-link text-secondary"
+            onClick={() => navigate(`/posts/${post.id}`)}
+          >
             <img
               src="/img/icons/comment.png"
               alt="Bình luận"
@@ -485,6 +701,17 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
           </div>
         </div>
       </div>
+
+      {/* Image Viewer Modal */}
+      {showImageViewer && (
+        <ImageViewerModal
+          show={showImageViewer}
+          onHide={() => setShowImageViewer(false)}
+          images={selectedImages}
+          initialIndex={selectedImageIndex}
+          getFullImageUrl={getFullImageUrl}
+        />
+      )}
     </div>
   );
 });
@@ -516,7 +743,7 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
   // Sort posts when receiving WebSocket updates
   const handleWebSocketUpdate = useCallback((updatedPost) => {
     setPosts(prevPosts => {
-      const newPosts = prevPosts.map(post => 
+      const newPosts = prevPosts.map(post =>
         post.id === updatedPost.id ? updatedPost : post
       );
       return newPosts.sort((a, b) => {
@@ -531,13 +758,13 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const postId = urlParams.get('postId');
-    
+
     if (postId) {
       // Check if we're coming from a notification click
-      const isFromNotification = document.referrer.includes('/notifications') || 
+      const isFromNotification = document.referrer.includes('/notifications') ||
                                document.referrer.includes('/friends') ||
                                document.referrer.includes('/profile');
-      
+
       if (isFromNotification) {
         // Wait for posts to be loaded
       const checkAndHighlightPost = () => {
@@ -553,7 +780,7 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
           setTimeout(checkAndHighlightPost, 100);
         }
       };
-      
+
       checkAndHighlightPost();
     }
     }
@@ -692,12 +919,12 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
     }
   };
 
-  // Xử lý sửa bài viết
+  // Xử lý sửa bài viết (chỉ nội dung và quyền riêng tư)
   const handleEditPost = async (postId, content, privacy) => {
-    if (!content.trim()) {
-      showError('Nội dung bài viết không được để trống');
-      return;
-    }
+    // Cho phép nội dung trống
+
+    // Cập nhật trạng thái loading
+    setIsLoading(prev => ({ ...prev, [`edit_${postId}`]: true }));
 
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts/${postId}`, {
@@ -724,16 +951,126 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
       const updatedPost = await response.json();
 
       // Cập nhật bài viết trong UI
-      setPosts(prevPosts =>
-        prevPosts.map(post =>
-          post.id === postId ? { ...post, content: updatedPost.content, privacy: updatedPost.privacy } : post
-        )
-      );
+      setPosts(prevPosts => {
+        // Tìm bài viết cần cập nhật
+        const postIndex = prevPosts.findIndex(p => p.id === postId);
+        if (postIndex === -1) return prevPosts;
+
+        // Tạo bản sao của mảng posts
+        const newPosts = [...prevPosts];
+
+        // Cập nhật bài viết với dữ liệu mới
+        newPosts[postIndex] = {
+          ...newPosts[postIndex],
+          content: updatedPost.content,
+          privacy: updatedPost.privacy
+        };
+
+        return newPosts;
+      });
 
       showSuccess('Cập nhật bài viết thành công');
+      return true; // Trả về true để component PostItem biết là cập nhật thành công
     } catch (error) {
       console.error('Lỗi khi cập nhật bài viết:', error);
       showError(error.message || 'Không thể cập nhật bài viết. Vui lòng thử lại.');
+      return false;
+    } finally {
+      // Reset trạng thái loading
+      setIsLoading(prev => ({ ...prev, [`edit_${postId}`]: false }));
+    }
+  };
+
+  // Xử lý sửa bài viết có kèm media
+  const handleEditPostWithMedia = async (postId, content, privacy, media, keepImages, keepVideos) => {
+    // Cho phép nội dung trống nếu có ít nhất một hình ảnh hoặc video
+    if (!content.trim() && (!media || media.length === 0) && (!keepImages || keepImages.length === 0) && (!keepVideos || keepVideos.length === 0)) {
+      showError('Bài viết phải có nội dung hoặc ít nhất một hình ảnh/video');
+      return;
+    }
+
+    // Cập nhật trạng thái loading
+    setIsLoading(prev => ({ ...prev, [`edit_${postId}`]: true }));
+
+    try {
+      const formData = new FormData();
+      formData.append('content', content);
+      formData.append('userId', currentUser.id);
+      formData.append('privacy', privacy);
+
+      // Thêm các hình ảnh giữ lại
+      if (keepImages && keepImages.length > 0) {
+        keepImages.forEach(image => {
+          formData.append('keepImages', image);
+        });
+      }
+
+      // Thêm các video giữ lại
+      if (keepVideos && keepVideos.length > 0) {
+        keepVideos.forEach(video => {
+          formData.append('keepVideos', video);
+        });
+      }
+
+      // Thêm các media mới
+      if (media && media.length > 0) {
+        media.forEach(file => {
+          if (file.type.includes('image')) {
+            formData.append('images', file);
+          } else if (file.type.includes('video')) {
+            formData.append('videos', file);
+          }
+        });
+      }
+
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts/${postId}/update-with-media`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('Bạn không có quyền sửa bài viết này');
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Không thể cập nhật bài viết');
+      }
+
+      const updatedPost = await response.json();
+
+      // Cập nhật bài viết trong UI
+      setPosts(prevPosts => {
+        // Tìm bài viết cần cập nhật
+        const postIndex = prevPosts.findIndex(p => p.id === postId);
+        if (postIndex === -1) return prevPosts;
+
+        // Tạo bản sao của mảng posts
+        const newPosts = [...prevPosts];
+
+        // Cập nhật bài viết với dữ liệu mới
+        newPosts[postIndex] = {
+          ...newPosts[postIndex],
+          content: updatedPost.content,
+          privacy: updatedPost.privacy,
+          images: updatedPost.images || [],
+          videos: updatedPost.videos || []
+        };
+
+        return newPosts;
+      });
+
+      showSuccess('Cập nhật bài viết thành công');
+      return true; // Trả về true để component PostItem biết là cập nhật thành công
+    } catch (error) {
+      console.error('Lỗi khi cập nhật bài viết:', error);
+      showError(error.message || 'Không thể cập nhật bài viết. Vui lòng thử lại.');
+      return false;
+    } finally {
+      // Reset trạng thái loading
+      setIsLoading(prev => ({ ...prev, [`edit_${postId}`]: false }));
     }
   };
 
@@ -860,6 +1197,7 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
             handleShareClick={handleShareClick}
             handleDeletePost={handleDeletePost}
             handleEditPost={handleEditPost}
+            handleEditPostWithMedia={handleEditPostWithMedia}
             handleDeleteComment={handleDeleteComment}
             commentInputs={commentInputs}
             setCommentInputs={setCommentInputs}

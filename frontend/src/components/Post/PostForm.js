@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { API_ENDPOINTS } from '../../config/api';
 import './PostForm.css';
+import { useToast } from '../../context/ToastContext';
 
 function PostForm({ onAddPost }) {
   const [content, setContent] = useState('');
@@ -11,6 +12,7 @@ function PostForm({ onAddPost }) {
   const [error, setError] = useState(null);
   const [privacy, setPrivacy] = useState('PUBLIC'); // Mặc định là PUBLIC
 
+  const { showSuccess, showError } = useToast();
   const currentUser = JSON.parse(localStorage.getItem('userData'));
 
   useEffect(() => {
@@ -48,19 +50,44 @@ function PostForm({ onAddPost }) {
     fetchUserProfile();
   }, [currentUser?.id]);
 
+  // Cleanup blob URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      // Xóa các URL object đã tạo để tránh memory leak
+      mediaPreview.forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [mediaPreview]);
+
   const getFullImageUrl = (path) => {
     if (!path) return '/default-imgs/avatar.png';
-    if (path.startsWith('http')) return path;
-    return `${API_ENDPOINTS.BASE_URL}${path}`;
+    if (path.startsWith('http') || path.startsWith('blob')) return path;
+    return `${API_ENDPOINTS.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
   };
 
   const handleMediaChange = (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
-      setMedia(files);
-      const previews = files.map(file => URL.createObjectURL(file));
-      setMediaPreview(previews);
+      setMedia(prevMedia => [...prevMedia, ...files]);
+      const newPreviews = files.map(file => URL.createObjectURL(file));
+      setMediaPreview(prevPreviews => [...prevPreviews, ...newPreviews]);
     }
+  };
+
+  // Xử lý khi xóa media
+  const handleRemoveMedia = (index) => {
+    // Lấy URL của preview để xóa
+    const previewUrl = mediaPreview[index];
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    // Cập nhật state
+    setMedia(prevMedia => prevMedia.filter((_, i) => i !== index));
+    setMediaPreview(prevPreviews => prevPreviews.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e) => {
@@ -119,20 +146,27 @@ function PostForm({ onAddPost }) {
       }
 
       onAddPost(newPost);
+      showSuccess('Đăng bài viết thành công');
 
-      setContent('');
-      setMedia([]);
-      setMediaPreview([]);
-      setPrivacy('PUBLIC');
+      // Reset form
+      handleCancel();
     } catch (error) {
       console.error('Error creating post:', error);
-      alert('Failed to create post. Please try again.');
+      showError('Không thể đăng bài viết. Vui lòng thử lại.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleCancel = () => {
+    // Xóa các URL object đã tạo để tránh memory leak
+    mediaPreview.forEach(url => {
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    });
+
+    // Reset các state
     setContent('');
     setMedia([]);
     setMediaPreview([]);
@@ -155,41 +189,43 @@ function PostForm({ onAddPost }) {
           <input
             type="text"
             className="form-control rounded-pill post-input"
-            placeholder="What's on your mind?"
+            placeholder="Bạn đang nghĩ gì?"
             value={content}
             onChange={(e) => setContent(e.target.value)}
           />
         </div>
         {mediaPreview.length > 0 && (
-          <div className="media-grid mb-3" data-count={mediaPreview.length}>
-            {mediaPreview.map((preview, index) => (
-              <div key={index} className="media-item">
-                {media[index].type.includes('video') ? (
-                  <video
-                    src={preview}
-                    controls
-                    className="img-fluid rounded"
-                    style={{ maxHeight: '300px', objectFit: 'cover' }}
-                  />
-                ) : (
-                  <img
-                    src={preview}
-                    alt="Preview"
-                    className="img-fluid rounded"
-                    style={{ maxHeight: '300px', objectFit: 'cover' }}
-                  />
-                )}
-                <button
-                  type="button"
-                  className="btn-close position-absolute top-0 end-0 m-2"
-                  onClick={() => {
-                    setMedia(media.filter((_, i) => i !== index));
-                    setMediaPreview(mediaPreview.filter((_, i) => i !== index));
-                  }}
-                  style={{ backgroundColor: 'rgba(255, 255, 255, 0.8)' }}
-                />
-              </div>
-            ))}
+          <div className="mb-3">
+            <div className="media-grid mb-2" data-count={mediaPreview.length}>
+              {mediaPreview.map((preview, index) => (
+                <div key={index} className="media-item position-relative">
+                  {media[index].type.includes('video') ? (
+                    <video
+                      src={preview}
+                      controls
+                      className="img-fluid rounded"
+                      style={{ maxHeight: '300px', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <img
+                      src={preview}
+                      alt={`Hình ảnh ${index + 1}`}
+                      className="img-fluid rounded"
+                      style={{ maxHeight: '300px', objectFit: 'cover' }}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 rounded-circle"
+                    style={{ width: '24px', height: '24px', padding: '0', lineHeight: '24px' }}
+                    onClick={() => handleRemoveMedia(index)}
+                    disabled={isLoading}
+                  >
+                    <i className="bi bi-x"></i>
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
         <div className="d-flex justify-content-between mb-3">
@@ -236,7 +272,7 @@ function PostForm({ onAddPost }) {
                 onClick={handleCancel}
                 disabled={isLoading}
               >
-                Cancel
+                Hủy
               </button>
             )}
             <button
@@ -244,7 +280,12 @@ function PostForm({ onAddPost }) {
               onClick={handleSubmit}
               disabled={isLoading || (!content.trim() && media.length === 0)}
             >
-              {isLoading ? 'Posting...' : 'Post'}
+              {isLoading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                  Đang đăng...
+                </>
+              ) : 'Đăng'}
             </button>
           </div>
         </div>
