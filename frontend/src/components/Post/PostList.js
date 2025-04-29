@@ -58,29 +58,29 @@ const PostContent = memo(({ post }) => {
             <p>{post.originalPost.content}</p>
 
             {post.originalPost.images?.length > 0 && (
-              <div className="media-grid mb-3">
+              <div className="media-grid mb-3" data-count={post.originalPost.images.length}>
                 {post.originalPost.images.map((image, index) => (
-                  <img
-                    key={index}
-                    src={getFullMediaUrl(image)}
-                    alt="Nội dung bài đăng"
-                    className="img-fluid rounded mb-2"
-                    style={{ maxHeight: '300px', objectFit: 'cover' }}
-                  />
+                  <div key={index} className="media-item">
+                    <img
+                      src={getFullMediaUrl(image)}
+                      alt="Nội dung bài đăng"
+                      className="img-fluid rounded"
+                    />
+                  </div>
                 ))}
               </div>
             )}
 
             {post.originalPost.videos?.length > 0 && (
-              <div className="media-grid mb-3">
+              <div className="media-grid mb-3" data-count={post.originalPost.videos.length}>
                 {post.originalPost.videos.map((video, index) => (
-                  <video
-                    key={index}
-                    src={getFullMediaUrl(video)}
-                    controls
-                    className="img-fluid rounded mb-2"
-                    style={{ maxHeight: '300px' }}
-                  />
+                  <div key={index} className="media-item">
+                    <video
+                      src={getFullMediaUrl(video)}
+                      controls
+                      className="img-fluid rounded"
+                    />
+                  </div>
                 ))}
               </div>
             )}
@@ -90,28 +90,28 @@ const PostContent = memo(({ post }) => {
         <>
           <p>{post.content}</p>
           {post.images?.length > 0 && (
-            <div className="media-grid mb-3">
+            <div className="media-grid mb-3" data-count={post.images.length}>
               {post.images.map((image, index) => (
-                <img
-                  key={index}
-                  src={getFullMediaUrl(image)}
-                  alt="Nội dung bài đăng"
-                  className="img-fluid rounded mb-2"
-                  style={{ maxHeight: '300px', objectFit: 'cover' }}
-                />
+                <div key={index} className="media-item">
+                  <img
+                    src={getFullMediaUrl(image)}
+                    alt="Nội dung bài đăng"
+                    className="img-fluid rounded"
+                  />
+                </div>
               ))}
             </div>
           )}
           {post.videos?.length > 0 && (
-            <div className="media-grid mb-3">
+            <div className="media-grid mb-3" data-count={post.videos.length}>
               {post.videos.map((video, index) => (
-                <video
-                  key={index}
-                  src={getFullMediaUrl(video)}
-                  controls
-                  className="img-fluid rounded mb-2"
-                  style={{ maxHeight: '300px' }}
-                />
+                <div key={index} className="media-item">
+                  <video
+                    src={getFullMediaUrl(video)}
+                    controls
+                    className="img-fluid rounded"
+                  />
+                </div>
               ))}
             </div>
           )}

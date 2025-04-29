@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { getUserData } from '../utils/auth';
 import { API_ENDPOINTS } from '../config/api';
 
-export const UserContext = createContext();
+const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -52,6 +52,19 @@ export const UserProvider = ({ children }) => {
     loadUser();
   }, []);
 
+  // Function to update user data globally
+  const updateUser = (userData) => {
+    setCurrentUser(userData);
+  };
+
+  // Expose updateUser function globally
+  useEffect(() => {
+    window.updateUserContext = updateUser;
+    return () => {
+      delete window.updateUserContext;
+    };
+  }, []);
+
   const value = {
     currentUser,
     setCurrentUser,
@@ -72,3 +85,5 @@ export const useUser = () => {
   }
   return context;
 };
+
+export default UserContext;

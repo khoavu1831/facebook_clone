@@ -86,29 +86,29 @@ const SharePostModal = memo(({ show, onHide, post, onShareSuccess }) => {
           <p>{post.content}</p>
           
           {post.images?.length > 0 && (
-            <div className="mb-3">
+            <div className="media-grid mb-3" data-count={post.images.length}>
               {post.images.map((image, index) => (
-                <img
-                  key={index}
-                  src={`${API_ENDPOINTS.BASE_URL}${image}`}
-                  alt="Nội dung bài đăng"
-                  className="img-fluid rounded mb-2"
-                  style={{ maxHeight: '150px' }}
-                />
+                <div key={index} className="media-item">
+                  <img
+                    src={`${API_ENDPOINTS.BASE_URL}${image}`}
+                    alt="Nội dung bài đăng"
+                    className="img-fluid rounded"
+                  />
+                </div>
               ))}
             </div>
           )}
           
           {post.videos?.length > 0 && (
-            <div className="mb-3">
+            <div className="media-grid mb-3" data-count={post.videos.length}>
               {post.videos.map((video, index) => (
-                <video
-                  key={index}
-                  src={`${API_ENDPOINTS.BASE_URL}${video}`}
-                  controls
-                  className="img-fluid rounded mb-2"
-                  style={{ maxHeight: '150px' }}
-                />
+                <div key={index} className="media-item">
+                  <video
+                    src={`${API_ENDPOINTS.BASE_URL}${video}`}
+                    controls
+                    className="img-fluid rounded"
+                  />
+                </div>
               ))}
             </div>
           )}

@@ -1,76 +1,9 @@
-/* PostForm.css */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&display=swap');
-
-.card {
-  max-width: 600px;
-  margin: 0 auto 20px;
-}
-
-.card-body {
+.shared-post-preview {
+  max-height: 400px;
+  overflow-y: auto;
   padding: 15px;
-  font-family: 'Poppins', sans-serif;
-}
-
-.post-input {
-  font-family: 'Poppins', sans-serif;
-  font-size: 16px;
-  padding: 10px 15px;
-}
-
-.action-button {
-  display: flex;
-  align-items: center;
-  font-family: 'Poppins', sans-serif;
-  font-size: 14px;
-  padding: 5px 10px;
-}
-
-.action-icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 5px;
-}
-
-.post-button {
-  font-family: 'Poppins', sans-serif;
-  font-size: 16px;
-  font-weight: 500;
-  padding: 8px 16px;
-  width: 100%;
-}
-
-.privacy-selector {
-  min-width: 120px;
-  max-width: 180px;
-  position: relative;
-  z-index: 100;
-}
-
-.privacy-selector .form-select {
-  font-size: 14px;
-  padding: 4px 12px 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  width: 100%;
-  /* Sử dụng mũi tên mặc định của trình duyệt */
-}
-
-/* Fix dropdown display issues */
-.form-select option {
-  background-color: white;
-  color: #333;
-  padding: 8px;
-}
-
-.form-select:focus {
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-  border-color: #86b7fe;
-}
-
-.btn-outline-secondary.btn-sm {
-  font-family: 'Poppins', sans-serif;
-  font-size: 14px;
-  padding: 6px 12px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
 }
 
 .media-grid {
@@ -221,19 +154,4 @@
 
 .media-grid[data-count="10"] .media-item:first-child {
   aspect-ratio: 1/1;
-}
-
-/* Remove button styles */
-.media-item .btn-close {
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.media-item:hover .btn-close {
-  opacity: 1;
-}
-
-.media-item .btn-close:focus {
-  opacity: 1;
-  box-shadow: none;
-}
+} 
