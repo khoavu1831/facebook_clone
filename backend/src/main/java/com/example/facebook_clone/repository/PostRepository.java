@@ -7,6 +7,5 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import com.example.facebook_clone.model.Post;
 
 public interface PostRepository extends MongoRepository<Post, String> {
-    List<Post> findByUserIdOrderByCreatedAtDesc(String userId);
-    List<Post> findAllByOrderByCreatedAtDesc();
+    List<Post> findByUserId(String userId);
 }

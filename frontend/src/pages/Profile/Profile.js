@@ -4,20 +4,26 @@ import { useUser } from '../../contexts/UserContext';
 import { API_ENDPOINTS } from '../../config/api';
 import PostForm from '../../components/Post/PostForm';
 import PostList from '../../components/Post/PostList';
+import { useParams } from 'react-router-dom';
 
 function Profile() {
+  const { userId } = useParams();
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [bio, setBio] = useState('');
   const [gender, setGender] = useState('');
+  const [day, setDay] = useState('');
+  const [month, setMonth] = useState('');
+  const [year, setYear] = useState('');
   const [avatar, setAvatar] = useState(null);
   const [coverPhoto, setCoverPhoto] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const [coverPreview, setCoverPreview] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState(null);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
 
   // Lưu trữ giá trị ban đầu để khôi phục khi hủy
   const [originalAvatarPreview, setOriginalAvatarPreview] = useState('');
@@ -33,14 +39,20 @@ function Profile() {
         setIsLoading(true);
         setError(null);
 
-        if (!currentUser?.id) {
+        // Xác định profileId dựa trên userId từ URL hoặc currentUser
+        const profileId = userId || currentUser?.id;
+
+        if (!profileId) {
           setError('User not found');
           setIsLoading(false);
           return;
         }
 
+        // Kiểm tra xem có phải profile của chính mình không
+        setIsOwnProfile(profileId === currentUser?.id);
+
         // Fetch profile data
-        const profileResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${currentUser.id}`, {
+        const profileResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${profileId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('userToken')}`
           }
@@ -55,6 +67,9 @@ function Profile() {
         setEmail(profileData.email);
         setBio(profileData.bio || '');
         setGender(profileData.gender || '');
+        setDay(profileData.day || '');
+        setMonth(profileData.month || '');
+        setYear(profileData.year || '');
         const avatarUrl = profileData.avatar ? `${API_ENDPOINTS.BASE_URL}${profileData.avatar}` : '/default-imgs/avatar.png';
         const coverUrl = profileData.coverPhoto ? `${API_ENDPOINTS.BASE_URL}${profileData.coverPhoto}` : '/default-imgs/cover.jpg';
 
@@ -65,12 +80,15 @@ function Profile() {
         setOriginalAvatarPreview(avatarUrl);
         setOriginalCoverPreview(coverUrl);
 
-        // Fetch user's posts
-        const postsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts?userId=${currentUser.id}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+        // Fetch user's posts using the new endpoint
+        const postsResponse = await fetch(
+          `${API_ENDPOINTS.BASE_URL}/api/posts/user/${profileId}?viewerId=${currentUser?.id}`, 
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+            }
           }
-        });
+        );
 
         if (!postsResponse.ok) {
           throw new Error('Failed to fetch posts');
@@ -88,7 +106,7 @@ function Profile() {
     };
 
     fetchProfileAndPosts();
-  }, [currentUser?.id]);
+  }, [userId, currentUser?.id]);
 
   // Nếu không có user data, redirect về login
   useEffect(() => {
@@ -147,9 +165,12 @@ function Profile() {
     formData.append('email', email);
     formData.append('bio', bio);
     formData.append('gender', gender);
+    formData.append('day', day);
+    formData.append('month', month);
+    formData.append('year', year);
     if (avatar) formData.append('avatar', avatar);
     if (coverPhoto) formData.append('coverPhoto', coverPhoto);
-
+  
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/update`, {
         method: 'POST',
@@ -158,34 +179,62 @@ function Profile() {
         },
         body: formData
       });
-
+  
       if (!response.ok) {
         throw new Error('Failed to update profile');
       }
-
+  
       const updatedProfile = await response.json();
-
+  
       // Cập nhật giá trị hiển thị
       setName(updatedProfile.firstName + ' ' + updatedProfile.lastName);
+      setEmail(updatedProfile.email);
       setBio(updatedProfile.bio || '');
-
-      const newAvatarPreview = updatedProfile.avatar ? `${API_ENDPOINTS.BASE_URL}${updatedProfile.avatar}` : avatarPreview;
-      const newCoverPreview = updatedProfile.coverPhoto ? `${API_ENDPOINTS.BASE_URL}${updatedProfile.coverPhoto}` : coverPreview;
-
+      setGender(updatedProfile.gender || '');
+      setDay(updatedProfile.day || '');
+      setMonth(updatedProfile.month || '');
+      setYear(updatedProfile.year || '');
+  
+      // Thêm timestamp để tránh cache
+      const timestamp = new Date().getTime();
+      const newAvatarPreview = updatedProfile.avatar 
+        ? `${API_ENDPOINTS.BASE_URL}${updatedProfile.avatar}?t=${timestamp}` 
+        : avatarPreview;
+      const newCoverPreview = updatedProfile.coverPhoto 
+        ? `${API_ENDPOINTS.BASE_URL}${updatedProfile.coverPhoto}?t=${timestamp}` 
+        : coverPreview;
+  
       setAvatarPreview(newAvatarPreview);
       setCoverPreview(newCoverPreview);
-
+  
       // Cập nhật giá trị ban đầu sau khi lưu thành công
       setOriginalAvatarPreview(newAvatarPreview);
       setOriginalCoverPreview(newCoverPreview);
-
+  
       // Xóa các file đã chọn
       setAvatar(null);
       setCoverPhoto(null);
-
+  
+      // Cập nhật currentUser trong localStorage (nếu cần)
+      const updatedUserData = {
+        ...currentUser,
+        firstName: updatedProfile.firstName,
+        lastName: updatedProfile.lastName,
+        email: updatedProfile.email,
+        bio: updatedProfile.bio,
+        gender: updatedProfile.gender,
+        day: updatedProfile.day,
+        month: updatedProfile.month,
+        year: updatedProfile.year,
+        avatar: updatedProfile.avatar,
+        coverPhoto: updatedProfile.coverPhoto
+      };
+      localStorage.setItem('userData', JSON.stringify(updatedUserData));
+  
       setIsEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);
+      setError(error.message);
     }
   };
 
@@ -194,6 +243,9 @@ function Profile() {
     // Đặt lại tất cả các trường về giá trị ban đầu
     setName(currentUser.firstName + ' ' + currentUser.lastName);
     setBio(currentUser.bio || '');
+    setDay(currentUser.day || '');
+    setMonth(currentUser.month || '');
+    setYear(currentUser.year || '');
 
     // Đặt lại avatar và ảnh bìa
     setAvatarPreview(originalAvatarPreview);
@@ -217,7 +269,7 @@ function Profile() {
             }}
           />
         )}
-        {isEditing && (
+        {isEditing && isOwnProfile && (
           <label className="cover-upload-button">
             <span className="cover-upload-text">Change Cover Photo</span>
             <input
@@ -242,7 +294,7 @@ function Profile() {
               }}
             />
           )}
-          {isEditing && (
+          {isEditing && isOwnProfile && (
             <div className="avatar-upload-wrapper">
               <label className="avatar-upload-button">
                 Change Avatar
@@ -259,7 +311,7 @@ function Profile() {
         <div className="profile-info" style={{ marginTop: '86px' }}>
           <h1 className="profile-name">{name}</h1>
           <p className="profile-bio">{bio}</p>
-          {!isEditing && (
+          {!isEditing && isOwnProfile && (
             <button
               className="edit-profile-button"
               onClick={() => setIsEditing(true)}
@@ -270,7 +322,7 @@ function Profile() {
         </div>
       </div>
 
-      {isEditing && (
+      {isEditing && isOwnProfile && (
         <div className="profile-form-section">
           <h2 className="form-title">Edit Profile</h2>
           <form className="profile-form" onSubmit={handleSaveProfile}>
@@ -299,6 +351,46 @@ function Profile() {
                 rows="4"
               />
             </div>
+            <div className="form-group">
+              <label className="form-label">Date of Birth</label>
+              <div className="d-flex">
+                <select
+                  className="form-select me-2"
+                  value={day}
+                  onChange={(e) => setDay(e.target.value)}
+                  required
+                >
+                  <option value="">Day</option>
+                  {[...Array(31)].map((_, i) => (
+                    <option key={i + 1} value={i + 1}>{i + 1}</option>
+                  ))}
+                </select>
+                <select
+                  className="form-select me-2"
+                  value={month}
+                  onChange={(e) => setMonth(e.target.value)}
+                  required
+                >
+                  <option value="">Month</option>
+                  {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                    <option key={i} value={m}>{m}</option>
+                  ))}
+                </select>
+                <select
+                  className="form-select"
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  required
+                >
+                  <option value="">Year</option>
+                  {[...Array(100)].map((_, i) => {
+                    const yearOption = new Date().getFullYear() - i;
+                    return <option key={yearOption} value={yearOption}>{yearOption}</option>;
+                  })}
+                </select>
+              </div>
+            </div>
+            
             <div className="form-buttons">
               <button
                 type="button"
@@ -316,7 +408,7 @@ function Profile() {
       )}
 
       <div className="profile-content">
-        <PostForm onAddPost={handleAddPost} />
+        {isOwnProfile && <PostForm onAddPost={handleAddPost} />}
         {posts.length > 0 ? (
           <PostList
             posts={posts}

@@ -44,7 +44,7 @@ function LeftSidebar() {
               src={getFullImageUrl(userProfile?.avatar)}
               alt="User"
               className="rounded-circle"
-              style={{ width: "30px", height: "30px" }}
+              style={{ width: "40px", height: "40px", objectFit: "cover" }}
             />
             <span style={{ marginLeft: '6px', fontSize: '18px' }}>
               {userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : 'Loading...'}
