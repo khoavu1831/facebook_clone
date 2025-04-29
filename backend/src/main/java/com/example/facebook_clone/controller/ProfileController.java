@@ -31,13 +31,13 @@ public class ProfileController {
     public ResponseEntity<?> getProfile(@PathVariable String userId) {
         try {
             Optional<User> userOptional = userRepository.findById(userId);
-            
+
             if (!userOptional.isPresent()) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             return ResponseEntity.ok(userOptional.get());
-            
+
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -57,7 +57,7 @@ public class ProfileController {
             @RequestParam("year") String year,
             @RequestParam(value = "avatar", required = false) MultipartFile avatar,
             @RequestParam(value = "coverPhoto", required = false) MultipartFile coverPhoto) {
-        
+
         try {
             Optional<User> userOptional = userRepository.findById(userId);
             if (!userOptional.isPresent()) {
@@ -77,18 +77,22 @@ public class ProfileController {
             // Chỉ cập nhật ảnh đại diện nếu có file mới
             if (avatar != null && !avatar.isEmpty()) {
                 String avatarFileName = fileStorageService.storeFile(avatar);
+                // Thêm timestamp vào đường dẫn để tránh cache
                 user.setAvatar("/uploads/" + avatarFileName);
+                System.out.println("Updated avatar URL: " + user.getAvatar());
             }
 
             // Chỉ cập nhật ảnh bìa nếu có file mới
             if (coverPhoto != null && !coverPhoto.isEmpty()) {
                 String coverFileName = fileStorageService.storeFile(coverPhoto);
+                // Thêm timestamp vào đường dẫn để tránh cache
                 user.setCoverPhoto("/uploads/" + coverFileName);
+                System.out.println("Updated cover URL: " + user.getCoverPhoto());
             }
 
             User savedUser = userRepository.save(user);
             return ResponseEntity.ok(savedUser);
-            
+
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

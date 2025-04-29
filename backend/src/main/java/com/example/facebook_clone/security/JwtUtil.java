@@ -7,6 +7,7 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -16,7 +17,10 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    // Sử dụng khóa bí mật mạnh hơn với HMAC-SHA
+    // Sử dụng một khóa bí mật cố định để đảm bảo các token không bị mất hiệu lực khi khởi động lại server
+    // Trong môi trường production, nên đặt giá trị này trong biến môi trường hoặc vault
+    private static final String FIXED_SECRET = "thisIsAVerySecureKeyForJwtSigningThatIsAtLeast64BytesLongAndShouldBeChangedInProduction";
+
     private Key secretKey;
 
     // Thời gian hết hạn token: 30 ngày (tương tự Facebook)
@@ -25,7 +29,8 @@ public class JwtUtil {
 
     // Khởi tạo khóa bí mật
     public JwtUtil() {
-        this.secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS512);
+        // Sử dụng khóa cố định thay vì lấy từ application.properties
+        this.secretKey = Keys.hmacShaKeyFor(FIXED_SECRET.getBytes(StandardCharsets.UTF_8));
     }
 
     // Tạo token từ thông tin người dùng

@@ -5,33 +5,22 @@ import { API_ENDPOINTS } from '../../config/api';
 import PostForm from '../../components/Post/PostForm';
 import PostList from '../../components/Post/PostList';
 import { useParams } from 'react-router-dom';
+import { useToast } from '../../context/ToastContext';
+import EditProfileModal from '../../components/Profile/EditProfileModal';
 
 function Profile() {
   const { userId } = useParams();
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [bio, setBio] = useState('');
-  const [gender, setGender] = useState('');
-  const [day, setDay] = useState('');
-  const [month, setMonth] = useState('');
-  const [year, setYear] = useState('');
-  const [avatar, setAvatar] = useState(null);
-  const [coverPhoto, setCoverPhoto] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState('');
-  const [coverPreview, setCoverPreview] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
+  const [profileData, setProfileData] = useState(null);
   const [error, setError] = useState(null);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
+  const [imageVersion, setImageVersion] = useState(Date.now()); // State to track image version for cache busting
+  const [showEditModal, setShowEditModal] = useState(false);
 
-  // Lưu trữ giá trị ban đầu để khôi phục khi hủy
-  const [originalAvatarPreview, setOriginalAvatarPreview] = useState('');
-  const [originalCoverPreview, setOriginalCoverPreview] = useState('');
-
-  // Get userData from localStorage
-  const userData = localStorage.getItem('userData');
-  const currentUser = userData ? JSON.parse(userData) : null;
+  // Sử dụng UserContext thay vì lấy trực tiếp từ localStorage
+  const { currentUser, updateUser } = useUser();
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     const fetchProfileAndPosts = async () => {
@@ -39,8 +28,23 @@ function Profile() {
         setIsLoading(true);
         setError(null);
 
-        // Xác định profileId dựa trên userId từ URL hoặc currentUser
-        const profileId = userId || currentUser?.id;
+        // Xác định profileId dựa trên userId từ URL, currentUser, hoặc localStorage
+        let profileId = userId;
+
+        if (!profileId) {
+          // Nếu không có userId trong URL, thử lấy từ currentUser
+          profileId = currentUser?.id;
+
+          // Nếu vẫn không có, thử lấy từ localStorage
+          if (!profileId) {
+            try {
+              const userData = JSON.parse(localStorage.getItem('userData'));
+              profileId = userData?.id;
+            } catch (e) {
+              console.error('Error parsing userData from localStorage:', e);
+            }
+          }
+        }
 
         if (!profileId) {
           setError('User not found');
@@ -49,10 +53,20 @@ function Profile() {
         }
 
         // Kiểm tra xem có phải profile của chính mình không
-        setIsOwnProfile(profileId === currentUser?.id);
+        // Nếu currentUser không có, thử lấy từ localStorage
+        let currentUserId = currentUser?.id;
+        if (!currentUserId) {
+          try {
+            const userData = JSON.parse(localStorage.getItem('userData'));
+            currentUserId = userData?.id;
+          } catch (e) {
+            console.error('Error parsing userData for isOwnProfile check:', e);
+          }
+        }
+        setIsOwnProfile(profileId === currentUserId);
 
         // Fetch profile data
-        const profileResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${profileId}`, {
+        const profileResponse = await fetch(`${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.PROFILE}/${profileId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('userToken')}`
           }
@@ -63,26 +77,16 @@ function Profile() {
         }
 
         const profileData = await profileResponse.json();
-        setName(`${profileData.firstName} ${profileData.lastName}`);
-        setEmail(profileData.email);
-        setBio(profileData.bio || '');
-        setGender(profileData.gender || '');
-        setDay(profileData.day || '');
-        setMonth(profileData.month || '');
-        setYear(profileData.year || '');
-        const avatarUrl = profileData.avatar ? `${API_ENDPOINTS.BASE_URL}${profileData.avatar}` : '/default-imgs/avatar.png';
-        const coverUrl = profileData.coverPhoto ? `${API_ENDPOINTS.BASE_URL}${profileData.coverPhoto}` : '/default-imgs/cover.jpg';
 
-        setAvatarPreview(avatarUrl);
-        setCoverPreview(coverUrl);
+        // Store the complete profile data
+        setProfileData(profileData);
 
-        // Lưu trữ giá trị ban đầu
-        setOriginalAvatarPreview(avatarUrl);
-        setOriginalCoverPreview(coverUrl);
+        // Update imageVersion to force re-render of images
+        setImageVersion(Date.now());
 
         // Fetch user's posts using the new endpoint
         const postsResponse = await fetch(
-          `${API_ENDPOINTS.BASE_URL}/api/posts/user/${profileId}?viewerId=${currentUser?.id}`, 
+          `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.POSTS}/user/${profileId}?viewerId=${currentUser?.id}`,
           {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('userToken')}`
@@ -105,29 +109,24 @@ function Profile() {
       }
     };
 
-    fetchProfileAndPosts();
+    // Always try to fetch profile data if there's a token
+    const hasToken = !!localStorage.getItem('userToken');
+    if (hasToken) {
+      fetchProfileAndPosts();
+    }
   }, [userId, currentUser?.id]);
 
-  // Nếu không có user data, redirect về login
+  // Nếu không có user data, sử dụng cached data từ localStorage thay vì redirect
   useEffect(() => {
-    if (!currentUser) {
+    // Kiểm tra xem có token không thay vì kiểm tra currentUser
+    const hasToken = !!localStorage.getItem('userToken');
+
+    // Chỉ redirect nếu không có token
+    if (!hasToken) {
+      console.log("No token found in Profile, redirecting to login");
       window.location.href = '/login';
     }
-  }, [currentUser]);
-
-  // Xử lý khi người dùng thoát ra mà không lưu
-  useEffect(() => {
-    // Khi component unmount hoặc khi isEditing thay đổi từ true sang false
-    return () => {
-      if (isEditing) {
-        // Đặt lại giá trị ban đầu nếu đang trong chế độ chỉnh sửa
-        setAvatarPreview(originalAvatarPreview);
-        setCoverPreview(originalCoverPreview);
-        setAvatar(null);
-        setCoverPhoto(null);
-      }
-    };
-  }, [isEditing, originalAvatarPreview, originalCoverPreview]);
+  }, []);
 
   if (error) {
     return <div className="alert alert-danger m-3">{error}</div>;
@@ -141,271 +140,69 @@ function Profile() {
     setPosts(prevPosts => [newPost, ...prevPosts]);
   };
 
-  const handleCoverChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setCoverPhoto(file);
-      setCoverPreview(URL.createObjectURL(file));
-    }
+  const handleProfileUpdate = (updatedUserData) => {
+    // Update the profile data state
+    setProfileData(updatedUserData);
+
+    // Update the user context
+    updateUser(updatedUserData);
+
+    // Force re-render of images with a new timestamp
+    setImageVersion(Date.now());
   };
 
-  const handleAvatarChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setAvatar(file);
-      setAvatarPreview(URL.createObjectURL(file));
-    }
+  // Get formatted name and prepare image URLs
+  const getFullImageUrl = (path) => {
+    if (!path) return '/default-imgs/avatar.png';
+    if (path.startsWith('http') || path.startsWith('blob')) return path;
+    return `${API_ENDPOINTS.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}?v=${imageVersion}`;
   };
 
-  const handleSaveProfile = async (e) => {
-    e.preventDefault();
-    const formData = new FormData();
-    formData.append('userId', currentUser.id);
-    formData.append('name', name);
-    formData.append('email', email);
-    formData.append('bio', bio);
-    formData.append('gender', gender);
-    formData.append('day', day);
-    formData.append('month', month);
-    formData.append('year', year);
-    if (avatar) formData.append('avatar', avatar);
-    if (coverPhoto) formData.append('coverPhoto', coverPhoto);
-  
-    try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/update`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('userToken')}`
-        },
-        body: formData
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to update profile');
-      }
-  
-      const updatedProfile = await response.json();
-  
-      // Cập nhật giá trị hiển thị
-      setName(updatedProfile.firstName + ' ' + updatedProfile.lastName);
-      setEmail(updatedProfile.email);
-      setBio(updatedProfile.bio || '');
-      setGender(updatedProfile.gender || '');
-      setDay(updatedProfile.day || '');
-      setMonth(updatedProfile.month || '');
-      setYear(updatedProfile.year || '');
-  
-      // Thêm timestamp để tránh cache
-      const timestamp = new Date().getTime();
-      const newAvatarPreview = updatedProfile.avatar 
-        ? `${API_ENDPOINTS.BASE_URL}${updatedProfile.avatar}?t=${timestamp}` 
-        : avatarPreview;
-      const newCoverPreview = updatedProfile.coverPhoto 
-        ? `${API_ENDPOINTS.BASE_URL}${updatedProfile.coverPhoto}?t=${timestamp}` 
-        : coverPreview;
-  
-      setAvatarPreview(newAvatarPreview);
-      setCoverPreview(newCoverPreview);
-  
-      // Cập nhật giá trị ban đầu sau khi lưu thành công
-      setOriginalAvatarPreview(newAvatarPreview);
-      setOriginalCoverPreview(newCoverPreview);
-  
-      // Xóa các file đã chọn
-      setAvatar(null);
-      setCoverPhoto(null);
-  
-      // Cập nhật currentUser trong localStorage (nếu cần)
-      const updatedUserData = {
-        ...currentUser,
-        firstName: updatedProfile.firstName,
-        lastName: updatedProfile.lastName,
-        email: updatedProfile.email,
-        bio: updatedProfile.bio,
-        gender: updatedProfile.gender,
-        day: updatedProfile.day,
-        month: updatedProfile.month,
-        year: updatedProfile.year,
-        avatar: updatedProfile.avatar,
-        coverPhoto: updatedProfile.coverPhoto
-      };
-      localStorage.setItem('userData', JSON.stringify(updatedUserData));
-  
-      setIsEditing(false);
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      setError(error.message);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    // Đặt lại tất cả các trường về giá trị ban đầu
-    setName(currentUser.firstName + ' ' + currentUser.lastName);
-    setBio(currentUser.bio || '');
-    setDay(currentUser.day || '');
-    setMonth(currentUser.month || '');
-    setYear(currentUser.year || '');
-
-    // Đặt lại avatar và ảnh bìa
-    setAvatarPreview(originalAvatarPreview);
-    setCoverPreview(originalCoverPreview);
-
-    // Xóa các file đã chọn
-    setAvatar(null);
-    setCoverPhoto(null);
-  };
+  // Format user data for display
+  const fullName = profileData ? `${profileData.firstName} ${profileData.lastName}` : '';
+  const bio = profileData?.bio || '';
+  const avatarUrl = profileData?.avatar ? getFullImageUrl(profileData.avatar) : '/default-imgs/avatar.png';
+  const coverUrl = profileData?.coverPhoto ? getFullImageUrl(profileData.coverPhoto) : '/default-imgs/cover.jpg';
 
   return (
     <div className="profile-container" style={{ marginTop: '62px' }}>
       <div className="cover-photo-section">
-        {coverPreview && (
-          <img
-            src={coverPreview}
-            alt="Cover"
-            className="cover-photo"
-            onError={(e) => {
-              e.target.src = '/default-imgs/cover.jpg';
-            }}
-          />
-        )}
-        {isEditing && isOwnProfile && (
-          <label className="cover-upload-button">
-            <span className="cover-upload-text">Change Cover Photo</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleCoverChange}
-              style={{ display: 'none' }}
-            />
-          </label>
-        )}
+        <img
+          src={coverUrl}
+          alt="Cover"
+          className="cover-photo"
+          onError={(e) => {
+            e.target.src = '/default-imgs/cover.jpg';
+          }}
+          key={`cover-${imageVersion}`}
+        />
       </div>
 
       <div className="profile-header">
         <div className="avatar-section">
-          {avatarPreview && (
-            <img
-              src={avatarPreview}
-              alt="Avatar"
-              className="avatar"
-              onError={(e) => {
-                e.target.src = '/default-imgs/avatar.png';
-              }}
-            />
-          )}
-          {isEditing && isOwnProfile && (
-            <div className="avatar-upload-wrapper">
-              <label className="avatar-upload-button">
-                Change Avatar
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarChange}
-                  style={{ display: 'none' }}
-                />
-              </label>
-            </div>
-          )}
+          <img
+            src={avatarUrl}
+            alt="Avatar"
+            className="avatar"
+            onError={(e) => {
+              e.target.src = '/default-imgs/avatar.png';
+            }}
+            key={`avatar-${imageVersion}`}
+          />
         </div>
         <div className="profile-info" style={{ marginTop: '86px' }}>
-          <h1 className="profile-name">{name}</h1>
+          <h1 className="profile-name">{fullName}</h1>
           <p className="profile-bio">{bio}</p>
-          {!isEditing && isOwnProfile && (
+          {isOwnProfile && (
             <button
               className="edit-profile-button"
-              onClick={() => setIsEditing(true)}
+              onClick={() => setShowEditModal(true)}
             >
               Edit Profile
             </button>
           )}
         </div>
       </div>
-
-      {isEditing && isOwnProfile && (
-        <div className="profile-form-section">
-          <h2 className="form-title">Edit Profile</h2>
-          <form className="profile-form" onSubmit={handleSaveProfile}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="name">
-                Name
-              </label>
-              <input
-                id="name"
-                className="form-input"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label" htmlFor="bio">
-                Bio
-              </label>
-              <textarea
-                id="bio"
-                className="form-textarea"
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                rows="4"
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Date of Birth</label>
-              <div className="d-flex">
-                <select
-                  className="form-select me-2"
-                  value={day}
-                  onChange={(e) => setDay(e.target.value)}
-                  required
-                >
-                  <option value="">Day</option>
-                  {[...Array(31)].map((_, i) => (
-                    <option key={i + 1} value={i + 1}>{i + 1}</option>
-                  ))}
-                </select>
-                <select
-                  className="form-select me-2"
-                  value={month}
-                  onChange={(e) => setMonth(e.target.value)}
-                  required
-                >
-                  <option value="">Month</option>
-                  {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
-                    <option key={i} value={m}>{m}</option>
-                  ))}
-                </select>
-                <select
-                  className="form-select"
-                  value={year}
-                  onChange={(e) => setYear(e.target.value)}
-                  required
-                >
-                  <option value="">Year</option>
-                  {[...Array(100)].map((_, i) => {
-                    const yearOption = new Date().getFullYear() - i;
-                    return <option key={yearOption} value={yearOption}>{yearOption}</option>;
-                  })}
-                </select>
-              </div>
-            </div>
-            
-            <div className="form-buttons">
-              <button
-                type="button"
-                className="cancel-button save-button"
-                onClick={handleCancelEdit}
-              >
-                Cancel
-              </button>
-              <button type="submit" className="save-button">
-                Save
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       <div className="profile-content">
         {isOwnProfile && <PostForm onAddPost={handleAddPost} />}
@@ -419,6 +216,18 @@ function Profile() {
           <p className="text-center mt-3">No posts yet</p>
         )}
       </div>
+
+      {/* Edit Profile Modal */}
+      {isOwnProfile && (
+        <EditProfileModal
+          show={showEditModal}
+          onHide={() => setShowEditModal(false)}
+          userData={profileData}
+          onProfileUpdate={handleProfileUpdate}
+          onSuccess={(message) => showSuccess(message)}
+          onError={(message) => showError(message)}
+        />
+      )}
     </div>
   );
 }
