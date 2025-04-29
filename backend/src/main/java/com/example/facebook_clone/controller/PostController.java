@@ -107,10 +107,12 @@ public class PostController {
         List<Post> posts;
 
         if (userId != null) {
-            // Nếu có userId, lấy tất cả bài viết công khai và bài viết riêng tư của người dùng đó
+            // Lấy tất cả bài viết công khai của người khác và tất cả bài viết của mình
             posts = postRepository.findAll().stream()
-                .filter(post -> "PUBLIC".equals(post.getPrivacy()) ||
-                        ("PRIVATE".equals(post.getPrivacy()) && post.getUserId().equals(userId)))
+                .filter(post -> 
+                    post.getUserId().equals(userId) || // Bài viết của mình
+                    "PUBLIC".equals(post.getPrivacy()) // Bài viết công khai của người khác
+                )
                 .collect(Collectors.toList());
         } else {
             // Nếu không có userId, chỉ lấy bài viết công khai
@@ -123,8 +125,36 @@ public class PostController {
             // Populate user information
             Optional<User> userOptional = userRepository.findById(post.getUserId());
             userOptional.ifPresent(post::setUser);
+
+            if (post.getOriginalPostId() != null) {
+                Post originalPost = postRepository.findById(post.getOriginalPostId()).orElse(null);
+                if (originalPost != null) {
+                    post.setOriginalPost(originalPost);
+                    Optional<User> userOptionalOriginalPost = userRepository.findById(originalPost.getUserId());
+                    userOptionalOriginalPost.ifPresent(originalPost::setUser);
+                }
+            }
         });
 
+        return ResponseEntity.ok(posts);
+    }
+
+    // Add new endpoint for profile posts
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<Post>> getUserPosts(@PathVariable String userId, @RequestParam(required = false) String viewerId) {
+        List<Post> posts;
+        
+        if (userId.equals(viewerId)) {
+            // If viewing own profile, show all posts
+            posts = postRepository.findByUserId(userId);
+        } else {
+            // If viewing other's profile, show only public posts
+            posts = postRepository.findByUserId(userId).stream()
+                .filter(post -> "PUBLIC".equals(post.getPrivacy()))
+                .collect(Collectors.toList());
+        }
+
+        posts.forEach(this::populatePostData);
         return ResponseEntity.ok(posts);
     }
 
@@ -220,6 +250,20 @@ public class PostController {
             Post post = postRepository.findById(postId)
                     .orElseThrow(() -> new RuntimeException("Post not found"));
 
+            // Kiểm tra độ sâu của comment
+            if (request.getParentId() != null && !request.getParentId().isEmpty()) {
+                Comment parentComment = findCommentById(post.getComments(), request.getParentId());
+                if (parentComment == null) {
+                    return ResponseEntity.badRequest().body("Parent comment not found");
+                }
+
+                // Tính độ sâu của comment
+                int depth = calculateCommentDepth(post.getComments(), request.getParentId());
+                if (depth >= 3) { // 3 là max depth cho phép (tổng 3 tầng: 0,1,2,3)
+                    return ResponseEntity.badRequest().body("Maximum reply depth reached");
+                }
+            }
+
             Comment comment = new Comment();
             comment.setId(UUID.randomUUID().toString());
             comment.setUserId(request.getUserId());
@@ -229,10 +273,6 @@ public class PostController {
             // Xử lý reply comment
             if (request.getParentId() != null && !request.getParentId().isEmpty()) {
                 Comment parentComment = findCommentById(post.getComments(), request.getParentId());
-                if (parentComment == null) {
-                    return ResponseEntity.badRequest().body("Parent comment not found");
-                }
-
                 comment.setParentId(request.getParentId());
                 if (parentComment.getReplies() == null) {
                     parentComment.setReplies(new ArrayList<>());
@@ -252,7 +292,7 @@ public class PostController {
             Post savedPost = postRepository.save(post);
             populatePostData(savedPost);
 
-            // Send WebSocket update
+            // Send WebSocket update to all users
             messagingTemplate.convertAndSend("/topic/posts/" + postId, savedPost);
 
             // Tạo thông báo nếu đây là bình luận mới (không phải reply)
@@ -302,6 +342,19 @@ public class PostController {
             }
         }
         return null;
+    }
+
+    // Thêm method mới để tính độ sâu của comment
+    private int calculateCommentDepth(List<Comment> comments, String commentId) {
+        int depth = 0;
+        Comment comment = findCommentById(comments, commentId);
+        
+        while (comment != null && comment.getParentId() != null) {
+            depth++;
+            comment = findCommentById(comments, comment.getParentId());
+        }
+        
+        return depth;
     }
 
     @PostMapping("/share")

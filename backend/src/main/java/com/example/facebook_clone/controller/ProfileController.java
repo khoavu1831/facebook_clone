@@ -52,6 +52,9 @@ public class ProfileController {
             @RequestParam("email") String email,
             @RequestParam("bio") String bio,
             @RequestParam("gender") String gender,
+            @RequestParam("day") String day,
+            @RequestParam("month") String month,
+            @RequestParam("year") String year,
             @RequestParam(value = "avatar", required = false) MultipartFile avatar,
             @RequestParam(value = "coverPhoto", required = false) MultipartFile coverPhoto) {
         
@@ -67,6 +70,9 @@ public class ProfileController {
             user.setEmail(email);
             user.setBio(bio);
             user.setGender(gender);
+            user.setDay(day);
+            user.setMonth(month);
+            user.setYear(year);
 
             // Chỉ cập nhật ảnh đại diện nếu có file mới
             if (avatar != null && !avatar.isEmpty()) {

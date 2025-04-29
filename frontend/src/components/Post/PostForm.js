@@ -4,8 +4,8 @@ import './PostForm.css';
 
 function PostForm({ onAddPost }) {
   const [content, setContent] = useState('');
-  const [media, setMedia] = useState(null);
-  const [mediaPreview, setMediaPreview] = useState(null);
+  const [media, setMedia] = useState([]);
+  const [mediaPreview, setMediaPreview] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [error, setError] = useState(null);
@@ -55,16 +55,17 @@ function PostForm({ onAddPost }) {
   };
 
   const handleMediaChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setMedia(file);
-      setMediaPreview(URL.createObjectURL(file));
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      setMedia(files);
+      const previews = files.map(file => URL.createObjectURL(file));
+      setMediaPreview(previews);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!content.trim() && !media) return;
+    if (!content.trim() && media.length === 0) return;
 
     setIsLoading(true);
     try {
@@ -73,12 +74,14 @@ function PostForm({ onAddPost }) {
       formData.append('userId', currentUser.id);
       formData.append('privacy', privacy);
 
-      if (media) {
-        if (media.type.includes('image')) {
-          formData.append('images', media);
-        } else if (media.type.includes('video')) {
-          formData.append('videos', media);
-        }
+      if (media.length > 0) {
+        media.forEach((file, index) => {
+          if (file.type.includes('image')) {
+            formData.append('images', file);
+          } else if (file.type.includes('video')) {
+            formData.append('videos', file);
+          }
+        });
       }
 
       const response = await fetch(`${API_ENDPOINTS.POSTS}`, {
@@ -118,9 +121,9 @@ function PostForm({ onAddPost }) {
       onAddPost(newPost);
 
       setContent('');
-      setMedia(null);
-      setMediaPreview(null);
-      setPrivacy('PUBLIC'); // Đặt lại quyền riêng tư về mặc định
+      setMedia([]);
+      setMediaPreview([]);
+      setPrivacy('PUBLIC');
     } catch (error) {
       console.error('Error creating post:', error);
       alert('Failed to create post. Please try again.');
@@ -131,9 +134,9 @@ function PostForm({ onAddPost }) {
 
   const handleCancel = () => {
     setContent('');
-    setMedia(null);
-    setMediaPreview(null);
-    setPrivacy('PUBLIC'); // Đặt lại quyền riêng tư về mặc định
+    setMedia([]);
+    setMediaPreview([]);
+    setPrivacy('PUBLIC');
   };
 
   return (
@@ -157,23 +160,36 @@ function PostForm({ onAddPost }) {
             onChange={(e) => setContent(e.target.value)}
           />
         </div>
-        {mediaPreview && (
-          <div className="mb-3 text-center">
-            {media?.type.includes('video') ? (
-              <video
-                src={mediaPreview}
-                controls
-                className="img-fluid rounded"
-                style={{ maxWidth: '300px', display: 'block', margin: '0 auto' }}
-              />
-            ) : (
-              <img
-                src={mediaPreview}
-                alt="Preview"
-                className="img-fluid rounded"
-                style={{ maxWidth: '300px', display: 'block', margin: '0 auto' }}
-              />
-            )}
+        {mediaPreview.length > 0 && (
+          <div className="media-grid mb-3" data-count={mediaPreview.length}>
+            {mediaPreview.map((preview, index) => (
+              <div key={index} className="media-item">
+                {media[index].type.includes('video') ? (
+                  <video
+                    src={preview}
+                    controls
+                    className="img-fluid rounded"
+                    style={{ maxHeight: '300px', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="img-fluid rounded"
+                    style={{ maxHeight: '300px', objectFit: 'cover' }}
+                  />
+                )}
+                <button
+                  type="button"
+                  className="btn-close position-absolute top-0 end-0 m-2"
+                  onClick={() => {
+                    setMedia(media.filter((_, i) => i !== index));
+                    setMediaPreview(mediaPreview.filter((_, i) => i !== index));
+                  }}
+                  style={{ backgroundColor: 'rgba(255, 255, 255, 0.8)' }}
+                />
+              </div>
+            ))}
           </div>
         )}
         <div className="d-flex justify-content-between mb-3">
@@ -191,6 +207,7 @@ function PostForm({ onAddPost }) {
               onChange={handleMediaChange}
               style={{ display: 'none' }}
               disabled={isLoading}
+              multiple
             />
           </label>
           <button className="btn btn-link text-secondary action-button" disabled={isLoading}>
@@ -213,7 +230,7 @@ function PostForm({ onAddPost }) {
           </div>
 
           <div className="d-flex gap-2">
-            {(content.trim() || media) && (
+            {(content.trim() || media.length > 0) && (
               <button
                 className="btn btn-outline-secondary btn-sm"
                 onClick={handleCancel}
@@ -225,7 +242,7 @@ function PostForm({ onAddPost }) {
             <button
               className="btn btn-primary post-button"
               onClick={handleSubmit}
-              disabled={isLoading || (!content.trim() && !media)}
+              disabled={isLoading || (!content.trim() && media.length === 0)}
             >
               {isLoading ? 'Posting...' : 'Post'}
             </button>
