@@ -158,6 +158,31 @@ public class PostController {
         return ResponseEntity.ok(posts);
     }
 
+    // Add endpoint to get a single post by ID
+    @GetMapping("/{postId}")
+    public ResponseEntity<?> getPostById(@PathVariable String postId, @RequestParam(required = false) String viewerId) {
+        try {
+            Optional<Post> postOptional = postRepository.findById(postId);
+            if (!postOptional.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Post post = postOptional.get();
+
+            // Check privacy settings - only check for PRIVATE posts
+            // If post is PRIVATE, only the owner can view it
+            if ("PRIVATE".equals(post.getPrivacy()) && (viewerId == null || !post.getUserId().equals(viewerId))) {
+                return ResponseEntity.status(403).body("You don't have permission to view this post");
+            }
+
+            populatePostData(post);
+            return ResponseEntity.ok(post);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     private void populatePostData(Post post) {
         // Add user info to the post
         Optional<User> postUserOptional = userRepository.findById(post.getUserId());
@@ -387,9 +412,11 @@ public class PostController {
             String userId = request.get("userId");
             String privacy = request.get("privacy");
 
-            if (content == null || userId == null) {
-                return ResponseEntity.badRequest().body("Content and userId are required");
+            if (userId == null) {
+                return ResponseEntity.badRequest().body("UserId is required");
             }
+
+            // Content can be empty or null
 
             // Kiểm tra xem bài viết có tồn tại không
             Optional<Post> postOptional = postRepository.findById(id);
@@ -429,7 +456,7 @@ public class PostController {
     @PostMapping("/{id}/update-with-media")
     public ResponseEntity<?> updatePostWithMedia(
             @PathVariable String id,
-            @RequestParam("content") String content,
+            @RequestParam(value = "content", required = false) String content,
             @RequestParam("userId") String userId,
             @RequestParam(value = "privacy", required = false) String privacy,
             @RequestParam(value = "images", required = false) MultipartFile[] images,
@@ -438,6 +465,7 @@ public class PostController {
             @RequestParam(value = "keepVideos", required = false) String[] keepVideos) {
 
         try {
+            // Content can be empty or null if there are images or videos
             // Kiểm tra xem bài viết có tồn tại không
             Optional<Post> postOptional = postRepository.findById(id);
             if (!postOptional.isPresent()) {

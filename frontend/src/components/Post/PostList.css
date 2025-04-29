@@ -239,6 +239,26 @@
   /* Sử dụng mũi tên mặc định của trình duyệt */
 }
 
+/* Privacy icon styles */
+.bi-globe, .bi-lock-fill {
+  font-size: 14px;
+  margin-right: 4px;
+}
+
+.bi-globe {
+  color: #65676b;
+}
+
+.bi-lock-fill {
+  color: #65676b;
+  font-size: 12px;
+}
+
+.privacy-text {
+  font-size: 12px;
+  color: #65676b;
+}
+
 /* Fix dropdown display issues */
 .form-select option {
   background-color: white;

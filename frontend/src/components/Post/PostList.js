@@ -5,10 +5,11 @@ import SharePostModal from './SharePostModal';
 import { webSocketService } from '../../services/websocket';
 import { useToast } from '../../context/ToastContext';
 import PostOptionsMenu from './PostOptionsMenu';
+import ImageViewerModal from './ImageViewerModal';
 import { useNavigate } from 'react-router-dom';
 
 // Component PostContent được memo để tránh render lại không cần thiết
-const PostContent = memo(({ post }) => {
+const PostContent = memo(({ post, onImageClick }) => {
   const isSharedPost = post.isShared || post.shared;
 
   const getFullImageUrl = (path) => {
@@ -60,7 +61,15 @@ const PostContent = memo(({ post }) => {
             {post.originalPost.images?.length > 0 && (
               <div className="media-grid mb-3" data-count={post.originalPost.images.length}>
                 {post.originalPost.images.map((image, index) => (
-                  <div key={index} className="media-item">
+                  <div
+                    key={index}
+                    className="media-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onImageClick) onImageClick(post.originalPost.images, index);
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <img
                       src={getFullMediaUrl(image)}
                       alt="Nội dung bài đăng"
@@ -92,7 +101,15 @@ const PostContent = memo(({ post }) => {
           {post.images?.length > 0 && (
             <div className="media-grid mb-3" data-count={post.images.length}>
               {post.images.map((image, index) => (
-                <div key={index} className="media-item">
+                <div
+                  key={index}
+                  className="media-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onImageClick) onImageClick(post.images, index);
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <img
                     src={getFullMediaUrl(image)}
                     alt="Nội dung bài đăng"
@@ -281,6 +298,10 @@ const Comment = ({ comment, postId, onReply, onDelete, currentUser, userProfile,
 // Component PostItem để render từng bài đăng, được memo
 const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComment, handleShareClick, handleDeletePost, handleEditPost, handleEditPostWithMedia, handleDeleteComment, commentInputs, setCommentInputs, isLoading }) => {
   const navigate = useNavigate();
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
   const getFullImageUrl = useCallback((path) => {
     if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http') || path.startsWith('blob')) return path;
@@ -391,9 +412,15 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
             >
               {post.user ? `${post.user.firstName} ${post.user.lastName}` : 'Người dùng không xác định'}
             </div>
-            <small className="text-secondary">
-              {new Date(post.createdAt).toLocaleString()}
-            </small>
+            <div className="d-flex align-items-center">
+              <small className="text-secondary me-2">
+                {new Date(post.createdAt).toLocaleString()}
+              </small>
+              <small className="text-secondary d-flex align-items-center">
+                <i className={`bi ${post.privacy === 'PUBLIC' ? 'bi-globe' : 'bi-lock-fill'} me-1`}></i>
+                <span className="privacy-text d-none d-sm-inline">{post.privacy === 'PUBLIC' ? 'Công khai' : 'Riêng tư'}</span>
+              </small>
+            </div>
           </div>
 
           {isPostOwner && (
@@ -559,8 +586,19 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
             </div>
           </div>
         ) : (
-          <div>
-            <PostContent post={post} />
+          <div
+            className="post-content-container"
+            style={{ cursor: 'pointer' }}
+            onClick={() => navigate(`/posts/${post.id}`)}
+          >
+            <PostContent
+              post={post}
+              onImageClick={(images, index) => {
+                setSelectedImages(images);
+                setSelectedImageIndex(index);
+                setShowImageViewer(true);
+              }}
+            />
             {post.privacy === 'PRIVATE' && (
               <div className="privacy-indicator mt-1">
                 <small className="text-muted">
@@ -583,7 +621,10 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
             />
             <span>{post.likes?.length || 0} Thích</span>
           </button>
-          <button className="btn btn-link text-secondary">
+          <button
+            className="btn btn-link text-secondary"
+            onClick={() => navigate(`/posts/${post.id}`)}
+          >
             <img
               src="/img/icons/comment.png"
               alt="Bình luận"
@@ -660,6 +701,17 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
           </div>
         </div>
       </div>
+
+      {/* Image Viewer Modal */}
+      {showImageViewer && (
+        <ImageViewerModal
+          show={showImageViewer}
+          onHide={() => setShowImageViewer(false)}
+          images={selectedImages}
+          initialIndex={selectedImageIndex}
+          getFullImageUrl={getFullImageUrl}
+        />
+      )}
     </div>
   );
 });
@@ -869,10 +921,7 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
 
   // Xử lý sửa bài viết (chỉ nội dung và quyền riêng tư)
   const handleEditPost = async (postId, content, privacy) => {
-    if (!content.trim()) {
-      showError('Nội dung bài viết không được để trống');
-      return;
-    }
+    // Cho phép nội dung trống
 
     // Cập nhật trạng thái loading
     setIsLoading(prev => ({ ...prev, [`edit_${postId}`]: true }));
@@ -934,8 +983,9 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
 
   // Xử lý sửa bài viết có kèm media
   const handleEditPostWithMedia = async (postId, content, privacy, media, keepImages, keepVideos) => {
-    if (!content.trim()) {
-      showError('Nội dung bài viết không được để trống');
+    // Cho phép nội dung trống nếu có ít nhất một hình ảnh hoặc video
+    if (!content.trim() && (!media || media.length === 0) && (!keepImages || keepImages.length === 0) && (!keepVideos || keepVideos.length === 0)) {
+      showError('Bài viết phải có nội dung hoặc ít nhất một hình ảnh/video');
       return;
     }
 
