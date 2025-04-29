@@ -13,7 +13,7 @@ const AdminNavbar = () => {
   };
 
   return (
-    <Navbar bg="primary" variant="dark" expand="lg" className="mb-4">
+    <Navbar bg="primary" variant="dark" expand="lg" className="mb-4 admin-navbar">
       <Container fluid>
         <Navbar.Brand as={Link} to="/admin" className="text-xl">
           Facebook Admin

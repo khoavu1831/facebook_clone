@@ -275,7 +275,7 @@ const NotificationDropdown = ({ currentUser }) => {
       {isOpen && (
         <div className="notification-menu">
           <div className="notification-header">
-            <h6 className="m-0">Thông báo</h6>
+            <h6 className="m-0">Notifications</h6>
             {notifications.length > 0 && (
               <button
                 className="btn btn-sm btn-link text-danger"
@@ -313,7 +313,7 @@ const NotificationDropdown = ({ currentUser }) => {
               ))
             ) : (
               <div className="text-center p-3 text-muted">
-                Không có thông báo nào
+                No notifications
               </div>
             )}
           </div>

@@ -49,8 +49,8 @@ public class NotificationService {
     public Notification createFriendRequestNotification(String userId, String senderId, String requestId) {
         Optional<User> senderOpt = userRepository.findById(senderId);
         String content = senderOpt.isPresent()
-            ? senderOpt.get().getFirstName() + " " + senderOpt.get().getLastName() + " đã gửi cho bạn lời mời kết bạn"
-            : "Bạn có một lời mời kết bạn mới";
+            ? senderOpt.get().getFirstName() + " " + senderOpt.get().getLastName() + " sent you a friend request"
+            : "You have a new friend request";
 
         return createNotification(userId, senderId, "FRIEND_REQUEST", content, requestId);
     }
@@ -59,8 +59,8 @@ public class NotificationService {
     public Notification createFriendAcceptNotification(String userId, String senderId, String requestId) {
         Optional<User> senderOpt = userRepository.findById(senderId);
         String content = senderOpt.isPresent()
-            ? senderOpt.get().getFirstName() + " " + senderOpt.get().getLastName() + " đã chấp nhận lời mời kết bạn của bạn"
-            : "Lời mời kết bạn của bạn đã được chấp nhận";
+            ? senderOpt.get().getFirstName() + " " + senderOpt.get().getLastName() + " accepted your friend request"
+            : "Your friend request has been accepted";
 
         return createNotification(userId, senderId, "FRIEND_ACCEPT", content, requestId);
     }
@@ -69,8 +69,8 @@ public class NotificationService {
     public Notification createCommentNotification(String postOwnerId, String commenterId, String postId, String commentId) {
         Optional<User> commenterOpt = userRepository.findById(commenterId);
         String content = commenterOpt.isPresent()
-            ? commenterOpt.get().getFirstName() + " " + commenterOpt.get().getLastName() + " đã bình luận về bài viết của bạn"
-            : "Có người đã bình luận về bài viết của bạn";
+            ? commenterOpt.get().getFirstName() + " " + commenterOpt.get().getLastName() + " commented on your post"
+            : "Someone commented on your post";
 
         return createNotification(postOwnerId, commenterId, "COMMENT", content, commentId);
     }
@@ -79,8 +79,8 @@ public class NotificationService {
     public Notification createReplyNotification(String commentOwnerId, String replierId, String postId, String replyId) {
         Optional<User> replierOpt = userRepository.findById(replierId);
         String content = replierOpt.isPresent()
-            ? replierOpt.get().getFirstName() + " " + replierOpt.get().getLastName() + " đã trả lời bình luận của bạn"
-            : "Có người đã trả lời bình luận của bạn";
+            ? replierOpt.get().getFirstName() + " " + replierOpt.get().getLastName() + " replied to your comment"
+            : "Someone replied to your comment";
 
         return createNotification(commentOwnerId, replierId, "REPLY", content, replyId);
     }
@@ -89,8 +89,8 @@ public class NotificationService {
     public Notification createMessageNotification(String receiverId, String senderId, String messageId) {
         Optional<User> senderOpt = userRepository.findById(senderId);
         String content = senderOpt.isPresent()
-            ? senderOpt.get().getFirstName() + " " + senderOpt.get().getLastName() + " đã gửi cho bạn một tin nhắn mới"
-            : "Bạn có một tin nhắn mới";
+            ? senderOpt.get().getFirstName() + " " + senderOpt.get().getLastName() + " sent you a new message"
+            : "You have a new message";
 
         return createNotification(receiverId, senderId, "MESSAGE", content, messageId);
     }
@@ -104,8 +104,8 @@ public class NotificationService {
 
         Optional<User> likerOpt = userRepository.findById(likerId);
         String content = likerOpt.isPresent()
-            ? likerOpt.get().getFirstName() + " " + likerOpt.get().getLastName() + " đã thích bài viết của bạn"
-            : "Có người đã thích bài viết của bạn";
+            ? likerOpt.get().getFirstName() + " " + likerOpt.get().getLastName() + " liked your post"
+            : "Someone liked your post";
 
         return createNotification(postOwnerId, likerId, "LIKE", content, postId);
     }
