@@ -16,11 +16,9 @@ export const getUserData = () => {
 };
 
 export const isUserLoggedIn = () => {
+  // Chỉ kiểm tra sự tồn tại của token, không quan tâm đến userData
+  // Điều này giúp tránh đăng xuất khi refresh trang
   const token = localStorage.getItem('userToken');
-  const userData = getUserData();
-
-  // Nếu có token nhưng không có userData, vẫn coi là đăng nhập
-  // UserContext sẽ tự động lấy userData từ API
   return !!token;
 };
 

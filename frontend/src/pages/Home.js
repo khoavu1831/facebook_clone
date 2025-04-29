@@ -29,7 +29,7 @@ const Home = () => {
           return; // Just return instead of redirecting
         }
 
-        const response = await fetch(`${API_ENDPOINTS.POSTS}?userId=${currentUser.id}`, {
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.POSTS}?userId=${currentUser.id}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('userToken')}`
           }

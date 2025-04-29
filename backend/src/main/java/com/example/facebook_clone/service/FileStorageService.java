@@ -13,7 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class FileStorageService {
-    
+
     private final Path fileStorageLocation;
 
     @Autowired
@@ -31,9 +31,14 @@ public class FileStorageService {
     public String storeFile(MultipartFile file) {
         try {
             String fileName = StringUtils.cleanPath(file.getOriginalFilename());
-            String newFileName = System.currentTimeMillis() + "_" + fileName;
+            // Thêm timestamp vào tên file để đảm bảo tính duy nhất và tránh cache
+            long timestamp = System.currentTimeMillis();
+            String newFileName = timestamp + "_" + fileName;
+
             Path targetLocation = this.fileStorageLocation.resolve(newFileName);
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+
+            System.out.println("Stored file: " + newFileName + " at " + timestamp);
             return newFileName;
         } catch (IOException ex) {
             throw new RuntimeException("Could not store file. Please try again!", ex);
