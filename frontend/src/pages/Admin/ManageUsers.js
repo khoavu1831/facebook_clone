@@ -242,9 +242,9 @@ const ManageUsers = () => {
                     <Row className="mb-2">
                       <Col sm={4} className="fw-bold">Giới tính:</Col>
                       <Col sm={8}>
-                        {currentUser.gender === 'male' ? 'Nam' :
-                         currentUser.gender === 'female' ? 'Nữ' :
-                         currentUser.gender === 'other' ? 'Khác' : 'Không xác định'}
+                        {currentUser.gender === 'Male' ? 'Nam' :
+                         currentUser.gender === 'Female' ? 'Nữ' :
+                         currentUser.gender === 'Other' ? 'Khác' : 'Không xác định'}
                       </Col>
                     </Row>
                     <Row className="mb-2">
