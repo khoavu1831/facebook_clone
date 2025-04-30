@@ -4,6 +4,7 @@ import { API_ENDPOINTS } from '../../config/api';
 import { webSocketService } from '../../services/websocket';
 import { useUser } from '../../contexts/UserContext';
 import { isUserLoggedIn } from '../../utils/auth';
+import { useNavigate } from 'react-router-dom';
 import './NotificationDropdown.css';
 
 const NotificationDropdown = ({ currentUser }) => {
@@ -14,6 +15,7 @@ const NotificationDropdown = ({ currentUser }) => {
   const dropdownRef = useRef(null);
   const { showError } = useToast();
   const { currentUser: contextUser } = useUser();
+  const navigate = useNavigate();
 
   // Fetch notifications when component mounts
   useEffect(() => {
@@ -138,9 +140,9 @@ const NotificationDropdown = ({ currentUser }) => {
       }
 
       // Update the notification in the state
-      setNotifications(prevNotifications => 
-        prevNotifications.map(notification => 
-          notification.notification.id === notificationId 
+      setNotifications(prevNotifications =>
+        prevNotifications.map(notification =>
+          notification.notification.id === notificationId
             ? { ...notification, notification: { ...notification.notification, read: true } }
             : notification
         )
@@ -166,7 +168,7 @@ const NotificationDropdown = ({ currentUser }) => {
     // Verify user is logged in
     if (!isUserLoggedIn()) {
       console.error('User not authenticated, redirecting to login');
-      window.location.href = '/login';
+      navigate('/login');
       return;
     }
 
@@ -174,58 +176,176 @@ const NotificationDropdown = ({ currentUser }) => {
     const user = contextUser || currentUser;
     if (!user || !user.id) {
       console.error('User data not found, redirecting to login');
-      window.location.href = '/login';
+      navigate('/login');
       return;
     }
 
     // Handle different notification types
     switch (notification.notification.type) {
       case 'FRIEND_REQUEST':
-        window.location.href = '/friends';
+        navigate('/friends');
         break;
       case 'FRIEND_ACCEPT':
-        window.location.href = '/friends';
+        navigate('/friends');
         break;
       case 'LIKE':
-      case 'COMMENT':
-      case 'REPLY':
-      case 'SHARE':
-        // Navigate to the post
+        // Navigate to the post for likes
         try {
-          if (window.location.pathname === '/' || window.location.pathname === '') {
-            const url = new URL(window.location.href);
-            url.searchParams.set('postId', notification.notification.entityId);
-            window.history.pushState({}, '', url);
-
-            const postElement = document.getElementById(`post-${notification.notification.entityId}`);
-            if (postElement) {
-              postElement.scrollIntoView({ behavior: 'smooth' });
-              postElement.classList.add('highlight-post');
-              setTimeout(() => {
-                postElement.classList.remove('highlight-post');
-              }, 2000);
-            } else {
-              window.location.href = `/?postId=${notification.notification.entityId}`;
-            }
-          } else {
-            window.location.href = `/?postId=${notification.notification.entityId}`;
-          }
+          navigateToPost(notification.notification.entityId);
         } catch (error) {
           console.error('Error navigating to post:', error);
-          window.location.href = `/?postId=${notification.notification.entityId}`;
+          navigate(`/?postId=${notification.notification.entityId}`);
+        }
+        break;
+      case 'COMMENT':
+        // Navigate to the post and highlight the comment
+        try {
+          // For comments, entityId is the comment ID
+          const commentId = notification.notification.entityId;
+
+          // First navigate to post detail page
+          // We need to fetch the post ID from the comment
+          fetch(`${API_ENDPOINTS.BASE_URL}/api/comments/${commentId}`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+            }
+          })
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to fetch comment');
+            return response.json();
+          })
+          .then(data => {
+            const postId = data.postId;
+
+            // Navigate to post detail page using React Router
+            navigate(`/posts/${postId}?commentId=${commentId}`);
+          })
+          .catch(error => {
+            console.error('Error fetching comment:', error);
+            // Fallback to home page if we can't get the post ID
+            navigate('/');
+          });
+        } catch (error) {
+          console.error('Error navigating to comment:', error);
+          navigate('/');
+        }
+        break;
+      case 'REPLY':
+        // Navigate to the post and highlight the reply
+        try {
+          // For replies, entityId is the reply comment ID
+          const replyId = notification.notification.entityId;
+
+          // First navigate to post detail page
+          // We need to fetch the post ID from the reply comment
+          fetch(`${API_ENDPOINTS.BASE_URL}/api/comments/${replyId}`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+            }
+          })
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to fetch reply');
+            return response.json();
+          })
+          .then(data => {
+            const postId = data.postId;
+            const parentId = data.parentId; // Get parent comment ID
+
+            // Navigate to post detail page with both comment IDs using React Router
+            navigate(`/posts/${postId}?commentId=${parentId}&replyId=${replyId}`);
+          })
+          .catch(error => {
+            console.error('Error fetching reply:', error);
+            // Fallback to home page if we can't get the post ID
+            navigate('/');
+          });
+        } catch (error) {
+          console.error('Error navigating to reply:', error);
+          navigate('/');
+        }
+        break;
+      case 'COMMENT_LIKE':
+        // Navigate to the post and highlight the comment that was liked
+        try {
+          // For comment likes, entityId is the comment ID
+          const commentId = notification.notification.entityId;
+
+          // First navigate to post detail page
+          // We need to fetch the post ID from the comment
+          fetch(`${API_ENDPOINTS.BASE_URL}/api/comments/${commentId}`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+            }
+          })
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to fetch comment');
+            return response.json();
+          })
+          .then(data => {
+            const postId = data.postId;
+            const parentId = data.parentId; // Check if it's a reply
+
+            if (parentId) {
+              // This is a reply comment
+              navigate(`/posts/${postId}?commentId=${parentId}&replyId=${commentId}`);
+            } else {
+              // This is a parent comment
+              navigate(`/posts/${postId}?commentId=${commentId}`);
+            }
+          })
+          .catch(error => {
+            console.error('Error fetching comment:', error);
+            // Fallback to home page if we can't get the post ID
+            navigate('/');
+          });
+        } catch (error) {
+          console.error('Error navigating to liked comment:', error);
+          navigate('/');
+        }
+        break;
+      case 'SHARE':
+        // Navigate to the post for shares
+        try {
+          navigateToPost(notification.notification.entityId);
+        } catch (error) {
+          console.error('Error navigating to post:', error);
+          navigate(`/?postId=${notification.notification.entityId}`);
         }
         break;
       case 'MESSAGE':
         // Open chat with the sender
         try {
-          // Dispatch a custom event to open chat with the sender
-          const event = new CustomEvent('openChat', {
-            detail: {
-              userId: notification.notification.senderId,
-              userName: notification.notification.senderName
+          // Get sender information
+          fetch(`${API_ENDPOINTS.BASE_URL}/api/users/${notification.notification.senderId}`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('userToken')}`
             }
+          })
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to fetch sender info');
+            return response.json();
+          })
+          .then(sender => {
+            // Create a friend object with the sender's information
+            const friend = {
+              id: sender.id,
+              firstName: sender.firstName,
+              lastName: sender.lastName,
+              avatar: sender.avatar
+            };
+
+            // Dispatch a custom event to open chat with the sender
+            const event = new CustomEvent('openChat', {
+              detail: {
+                friend: friend,
+                messageId: notification.notification.entityId // Pass the message ID
+              }
+            });
+            window.dispatchEvent(event);
+          })
+          .catch(error => {
+            console.error('Error fetching sender info:', error);
           });
-          window.dispatchEvent(event);
         } catch (error) {
           console.error('Error opening chat:', error);
         }
@@ -247,11 +367,19 @@ const NotificationDropdown = ({ currentUser }) => {
         return <i className="bi bi-chat-fill text-info"></i>;
       case 'REPLY':
         return <i className="bi bi-reply-fill text-info"></i>;
+      case 'COMMENT_LIKE':
+        return <i className="bi bi-hand-thumbs-up-fill text-primary"></i>;
       case 'MESSAGE':
         return <i className="bi bi-envelope-fill text-warning"></i>;
       default:
         return <i className="bi bi-bell-fill text-secondary"></i>;
     }
+  };
+
+  // Helper function to navigate to a post
+  const navigateToPost = (postId) => {
+    // Luôn điều hướng đến trang chi tiết bài viết
+    navigate(`/posts/${postId}`);
   };
 
   // Toggle dropdown

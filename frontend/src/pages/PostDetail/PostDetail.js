@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { API_ENDPOINTS } from '../../config/api';
 import { useUser } from '../../contexts/UserContext';
 import { useToast } from '../../context/ToastContext';
@@ -14,19 +14,27 @@ import './PostDetail.css';
 const PostDetail = () => {
   const { postId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser } = useUser();
   const { showSuccess, showError } = useToast();
+
+  // Get query parameters for comment highlighting
+  const queryParams = new URLSearchParams(location.search);
+  const highlightCommentId = queryParams.get('commentId');
 
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [commentInput, setCommentInput] = useState('');
-  const [replyInputs, setReplyInputs] = useState({});
+  // Không cần các state này nữa vì đã được xử lý trong component Comment
   const [showShareModal, setShowShareModal] = useState(false);
   const [isLoading, setIsLoading] = useState({});
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
+  // Ref for highlighted comment
+  const highlightedCommentRef = useRef(null);
 
   // Fetch post data
   useEffect(() => {
@@ -107,12 +115,73 @@ const PostDetail = () => {
     fetchUserProfile();
   }, [currentUser?.id]);
 
+  // Biến để theo dõi xem người dùng có đang nhập liệu không
+  const isUserTyping = useRef(false);
+
+  // Biến để theo dõi xem có đang hiển thị ô nhập phản hồi không
+  const isReplyInputVisible = useRef(false);
+
   // WebSocket subscription
   useEffect(() => {
     if (postId && currentUser?.id) {
       // Subscribe to post updates
       webSocketService.subscribeToPost(postId, (updatedPost) => {
-        setPost(updatedPost);
+        // Kiểm tra xem có đang nhập liệu không
+        const isTyping = isUserTyping.current;
+
+        // Kiểm tra xem có ô nhập phản hồi nào đang hiển thị không
+        const isReplyVisible = isReplyInputVisible.current;
+
+        // Chỉ cập nhật khi không đang nhập liệu và không có ô nhập phản hồi nào đang hiển thị
+        if (!isTyping && !isReplyVisible) {
+          setPost(prevPost => {
+            // Nếu không có post trước đó, thì cập nhật
+            if (!prevPost) {
+              return updatedPost;
+            }
+
+            // Tạo bản sao của updatedPost để tránh tham chiếu trực tiếp
+            const newPost = {...updatedPost};
+
+            // Giữ nguyên các đường dẫn hình ảnh và video từ post cũ
+            // để tránh việc tải lại không cần thiết
+            if (prevPost.images && newPost.images) {
+              newPost.images = [...prevPost.images];
+            }
+            if (prevPost.videos && newPost.videos) {
+              newPost.videos = [...prevPost.videos];
+            }
+
+            // Giữ nguyên các bình luận đang được hiển thị
+            if (prevPost.comments && newPost.comments) {
+              // Chỉ cập nhật nội dung bình luận, không thay đổi trạng thái hiển thị
+              newPost.comments = newPost.comments.map(newComment => {
+                const oldComment = prevPost.comments.find(c => c.id === newComment.id);
+                if (oldComment) {
+                  // Giữ lại các trạng thái hiển thị từ bình luận cũ
+                  return {
+                    ...newComment,
+                    // Giữ nguyên các thuộc tính UI nếu có
+                  };
+                }
+                return newComment;
+              });
+            }
+
+            // Nếu là bài đăng chia sẻ, cũng giữ nguyên hình ảnh của bài gốc
+            if (prevPost.originalPost && newPost.originalPost) {
+              newPost.originalPost = {...newPost.originalPost};
+              if (prevPost.originalPost.images && newPost.originalPost.images) {
+                newPost.originalPost.images = [...prevPost.originalPost.images];
+              }
+              if (prevPost.originalPost.videos && newPost.originalPost.videos) {
+                newPost.originalPost.videos = [...prevPost.originalPost.videos];
+              }
+            }
+
+            return newPost;
+          });
+        }
       });
 
       return () => {
@@ -122,11 +191,87 @@ const PostDetail = () => {
     }
   }, [postId, currentUser?.id]);
 
+  // Không cần useEffect này nữa vì việc hiển thị replies được xử lý trong component Comment
+
+  // Cache for image URLs to prevent unnecessary reloads
+  const imageUrlCache = useRef(new Map());
+
   const getFullImageUrl = useCallback((path) => {
     if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http') || path.startsWith('blob')) return path;
-    return `${API_ENDPOINTS.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+
+    // Check if we already have this URL in our cache
+    if (imageUrlCache.current.has(path)) {
+      return imageUrlCache.current.get(path);
+    }
+
+    // Create the full URL
+    const fullUrl = `${API_ENDPOINTS.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+
+    // Store in cache
+    imageUrlCache.current.set(path, fullUrl);
+
+    return fullUrl;
   }, []);
+
+  // Memoized component for avatar to prevent unnecessary re-renders
+  const MemoizedAvatar = memo(({ src, alt, className, style, onClick }) => {
+    // Use a stable reference for the src to prevent unnecessary re-renders
+    const srcRef = useRef(src);
+
+    // Only update the ref if the src has actually changed
+    useEffect(() => {
+      if (src !== srcRef.current) {
+        srcRef.current = src;
+      }
+    }, [src]);
+
+    return (
+      <img
+        src={srcRef.current}
+        alt={alt}
+        className={className}
+        style={style}
+        onClick={onClick}
+        loading="lazy"
+      />
+    );
+  }, (prevProps, nextProps) => {
+    // Custom comparison function for memo
+    // Only re-render if the src actually changes and is different
+    return prevProps.src === nextProps.src;
+  });
+
+  // Memoized component for post images to prevent unnecessary re-renders
+  const MemoizedPostImage = memo(({ src, alt, className, onClick }) => {
+    // Use a stable reference for the src to prevent unnecessary re-renders
+    const srcRef = useRef(src);
+
+    // Only update the ref if the src has actually changed
+    useEffect(() => {
+      if (src !== srcRef.current) {
+        srcRef.current = src;
+      }
+    }, [src]);
+
+    return (
+      <img
+        src={srcRef.current}
+        alt={alt}
+        className={className}
+        onClick={onClick}
+        loading="lazy"
+        onError={(e) => {
+          console.log('Image load error, using default:', e.target.src);
+          e.target.src = '/default-imgs/image-placeholder.png';
+        }}
+      />
+    );
+  }, (prevProps, nextProps) => {
+    // Custom comparison function for memo
+    // Only re-render if the src actually changes
+    return prevProps.src === nextProps.src;
+  });
 
   const handleAvatarClick = (userId) => {
     navigate(`/profile/${userId}`);
@@ -154,6 +299,10 @@ const PostDetail = () => {
   const handleComment = async (content, parentId = null) => {
     if (!content?.trim() || isLoading[`comment_${parentId || 'new'}`]) return;
 
+    // Đánh dấu người dùng đã ngừng nhập liệu
+    isUserTyping.current = false;
+    isReplyInputVisible.current = false;
+
     setIsLoading(prev => ({ ...prev, [`comment_${parentId || 'new'}`]: true }));
 
     try {
@@ -175,9 +324,7 @@ const PostDetail = () => {
       }
 
       // Reset input
-      if (parentId) {
-        setReplyInputs(prev => ({ ...prev, [parentId]: '' }));
-      } else {
+      if (!parentId) {
         setCommentInput('');
       }
 
@@ -185,6 +332,7 @@ const PostDetail = () => {
     } catch (error) {
       console.error('Error adding comment:', error);
       showError('Failed to add comment. Please try again.');
+      throw error; // Rethrow error to be caught by the caller
     } finally {
       setIsLoading(prev => ({ ...prev, [`comment_${parentId || 'new'}`]: false }));
     }
@@ -209,6 +357,32 @@ const PostDetail = () => {
       showError('Failed to delete comment. Please try again.');
     }
   };
+
+  const handleLikeComment = async (commentId) => {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/comments/${commentId}/like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+        },
+        body: JSON.stringify({
+          userId: currentUser.id
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to like comment');
+      }
+
+      // WebSocket will update the post
+    } catch (error) {
+      console.error('Error liking comment:', error);
+      showError('Failed to like comment. Please try again.');
+    }
+  };
+
+  // Không cần các hàm này nữa vì đã được xử lý trong component Comment
 
   const handleShareClick = () => {
     setShowShareModal(true);
@@ -326,29 +500,79 @@ const PostDetail = () => {
     }
   };
 
-  // Comment component
+  // Comment component - Rewritten to match PostList.js
   const Comment = ({ comment, postId, depth = 0 }) => {
     const [showReplyInput, setShowReplyInput] = useState(false);
-    const [showReplies, setShowReplies] = useState(false);
-    const MAX_DEPTH = 2;
+    const [replyContent, setReplyContent] = useState('');
+    const [isCommentLoading, setIsCommentLoading] = useState(false);
+    const [showAllReplies, setShowAllReplies] = useState(false);
+
+    // For highlighting
+    const isHighlightedComment = comment.id === highlightCommentId;
+    const [hasScrolled, setHasScrolled] = useState(false);
+    const commentRef = isHighlightedComment ? highlightedCommentRef : null;
+
+    const MAX_REPLY_DEPTH = 4; // Giới hạn độ sâu tối đa (0,1,2,3 = 4 tầng)
+    const MAX_VISIBLE_REPLIES = 0; // Mặc định không hiển thị phản hồi con
+
+    // Kiểm tra xem có thể reply tiếp không
+    const canReply = depth < MAX_REPLY_DEPTH;
+
+    // Kiểm tra xem người dùng hiện tại có phải là chủ sở hữu bình luận không
     const isCommentOwner = currentUser?.id === comment.userId;
 
-    const handleReplyClick = () => {
-      setShowReplyInput(!showReplyInput);
+    // Scroll to highlighted comment when it's rendered - only once
+    useEffect(() => {
+      if (isHighlightedComment && highlightedCommentRef.current && !hasScrolled) {
+        setHasScrolled(true);
+
+        const scrollTimeout = setTimeout(() => {
+          if (highlightedCommentRef.current) {
+            highlightedCommentRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Auto-show reply input for highlighted comment
+            setShowReplyInput(true);
+          }
+        }, 500);
+
+        return () => clearTimeout(scrollTimeout);
+      }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleReply = async () => {
+      if (!replyContent.trim() || isCommentLoading) return;
+
+      setIsCommentLoading(true);
+      try {
+        await handleComment(replyContent, comment.id);
+        setReplyContent('');
+        setShowReplyInput(false);
+      } catch (error) {
+        console.error('Error in handleReply:', error);
+      } finally {
+        setIsCommentLoading(false);
+      }
     };
 
-    const handleToggleReplies = () => {
-      setShowReplies(!showReplies);
-    };
+    const displayedReplies = showAllReplies
+      ? comment.replies
+      : comment.replies?.slice(0, MAX_VISIBLE_REPLIES);
 
-    const marginLeft = depth < MAX_DEPTH ? `${depth * 32}px` : `${MAX_DEPTH * 32}px`;
+    // Luôn hiển thị nút "Xem thêm phản hồi" nếu có phản hồi con
+    const hasMoreReplies = comment.replies?.length > 0;
+    const marginLeft = depth < MAX_REPLY_DEPTH ? `${depth * 32}px` : `${MAX_REPLY_DEPTH * 32}px`;
+
+    if (!currentUser) {
+      return null;
+    }
 
     return (
-      <div className="comment-thread" style={{ marginLeft }}>
+      <div className="comment-thread" style={{ marginLeft }} ref={commentRef}>
         <div className="comment-main d-flex gap-2 mb-2">
-          <img
+          <MemoizedAvatar
             src={getFullImageUrl(comment.user?.avatar)}
-            alt="Người dùng"
+            alt="User"
             className="rounded-circle"
             style={{ width: '32px', height: '32px', objectFit: 'cover', cursor: 'pointer' }}
             onClick={() => handleAvatarClick(comment.user?.id)}
@@ -360,79 +584,98 @@ const PostDetail = () => {
                 style={{ cursor: 'pointer' }}
                 onClick={() => handleAvatarClick(comment.user?.id)}
               >
-                {comment.user ? `${comment.user.firstName} ${comment.user.lastName}` : 'Người dùng không xác định'}
+                {comment.user ? `${comment.user.firstName} ${comment.user.lastName}` : 'Unknown User'}
               </div>
               {comment.content}
             </div>
-            <div className="d-flex gap-2 mt-1">
-              <button className="btn btn-link btn-sm p-0 text-secondary" onClick={handleReplyClick}>
-                Phản hồi
+
+            <div className="comment-actions mt-1 d-flex align-items-center">
+              <button
+                className={`btn btn-link btn-sm p-0 ${comment.likes?.includes(currentUser.id) ? 'text-primary' : 'text-secondary'} me-2`}
+                onClick={() => handleLikeComment(comment.id)}
+              >
+                Thích {comment.likes?.length > 0 && `(${comment.likes.length})`}
               </button>
-              {isCommentOwner && (
+              {canReply && (
                 <button
-                  className="btn btn-link btn-sm p-0 text-danger"
-                  onClick={() => handleDeleteComment(comment.id)}
+                  className="btn btn-link btn-sm p-0 text-secondary me-2"
+                  onClick={() => setShowReplyInput(!showReplyInput)}
                 >
-                  Xóa
+                  Phản hồi
                 </button>
               )}
-              <small className="text-secondary">
+              {isCommentOwner && (
+                <button
+                  className="btn btn-link btn-sm p-0 text-danger me-2"
+                  onClick={() => handleDeleteComment(comment.id)}
+                >
+                  <i className="bi bi-trash-fill"></i> Xóa
+                </button>
+              )}
+              <small className="text-muted ms-auto">
                 {new Date(comment.createdAt).toLocaleString()}
               </small>
             </div>
+
+            {showReplyInput && (
+              <div className="reply-input-container d-flex gap-2 mt-2">
+                <MemoizedAvatar
+                  src={getFullImageUrl(userProfile?.avatar)}
+                  alt="Current user"
+                  className="rounded-circle"
+                  style={{ width: '28px', height: '28px', objectFit: 'cover' }}
+                />
+                <div className="flex-grow-1">
+                  <div className="position-relative">
+                    <input
+                      type="text"
+                      className="form-control form-control-sm rounded-pill"
+                      placeholder={`Phản hồi ${comment.user?.firstName}...`}
+                      value={replyContent}
+                      onChange={(e) => setReplyContent(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey && !isCommentLoading) {
+                          e.preventDefault();
+                          handleReply();
+                        }
+                      }}
+                    />
+                    <button
+                      className="btn btn-link text-primary position-absolute"
+                      style={{ right: '8px', top: '50%', transform: 'translateY(-50%)' }}
+                      onClick={handleReply}
+                      disabled={isCommentLoading || !replyContent.trim()}
+                    >
+                      {isCommentLoading ? (
+                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      ) : (
+                        <i className="bi bi-send-fill"></i>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {showReplyInput && (
-          <div className="reply-input d-flex gap-2 mb-2" style={{ marginLeft: '32px' }}>
-            <img
-              src={getFullImageUrl(userProfile?.avatar)}
-              alt="Người dùng hiện tại"
-              className="rounded-circle"
-              style={{ width: '32px', height: '32px', objectFit: 'cover' }}
-            />
-            <div className="flex-grow-1">
-              <div className="input-group">
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Viết phản hồi..."
-                  value={replyInputs[comment.id] || ''}
-                  onChange={(e) => setReplyInputs({ ...replyInputs, [comment.id]: e.target.value })}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleComment(replyInputs[comment.id], comment.id);
-                    }
-                  }}
-                />
+        {hasMoreReplies && (
+          <>
+            {!showAllReplies && (
+              <div className="view-replies-wrapper">
                 <button
-                  className="btn btn-primary"
-                  onClick={() => handleComment(replyInputs[comment.id], comment.id)}
-                  disabled={isLoading[`comment_${comment.id}`]}
+                  className="btn btn-link btn-sm text-primary mb-2 view-replies-btn"
+                  onClick={() => setShowAllReplies(true)}
                 >
-                  {isLoading[`comment_${comment.id}`] ? (
-                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                  ) : (
-                    'Phản hồi'
-                  )}
+                  <span className="view-replies-icon"><i className="bi bi-arrow-return-right"></i></span>
+                  <span className="view-replies-text">Xem {comment.replies.length} phản hồi</span>
                 </button>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {comment.replies && comment.replies.length > 0 && (
-          <>
-            <button
-              className="btn btn-link btn-sm text-secondary ms-4 mb-2"
-              onClick={handleToggleReplies}
-            >
-              {showReplies ? 'Ẩn phản hồi' : `Xem ${comment.replies.length} phản hồi`}
-            </button>
-
-            {showReplies && (
+            {showAllReplies && (
               <div className="replies-container">
-                {comment.replies.map((reply, index) => (
+                {displayedReplies?.map((reply, index) => (
                   <Comment
                     key={reply.id || index}
                     comment={reply}
@@ -440,6 +683,16 @@ const PostDetail = () => {
                     depth={depth + 1}
                   />
                 ))}
+
+                {showAllReplies && comment.replies?.length > 0 && (
+                  <button
+                    className="btn btn-link btn-sm text-primary mb-2"
+                    onClick={() => setShowAllReplies(false)}
+                  >
+                    <i className="bi bi-chevron-up me-1"></i>
+                    Ẩn phản hồi
+                  </button>
+                )}
               </div>
             )}
           </>
@@ -505,7 +758,7 @@ const PostDetail = () => {
               <div className="card-body">
                 {/* Post Header */}
                 <div className="d-flex align-items-center gap-2 mb-3">
-                  <img
+                  <MemoizedAvatar
                     src={getFullImageUrl(post.user?.avatar)}
                     alt="User"
                     className="rounded-circle"
@@ -594,7 +847,7 @@ const PostDetail = () => {
                                     }}
                                     style={{ cursor: 'pointer' }}
                                   >
-                                    <img
+                                    <MemoizedPostImage
                                       src={getFullImageUrl(image)}
                                       alt="Post content"
                                       className="img-fluid rounded"
@@ -640,7 +893,7 @@ const PostDetail = () => {
                               }}
                               style={{ cursor: 'pointer' }}
                             >
-                              <img
+                              <MemoizedPostImage
                                 src={getFullImageUrl(image)}
                                 alt="Post content"
                                 className="img-fluid rounded"
@@ -723,36 +976,41 @@ const PostDetail = () => {
                 <div className="comments-section">
                   {/* Add Comment Input */}
                   <div className="d-flex gap-2 align-items-center mb-4">
-                    <img
+                    <MemoizedAvatar
                       src={getFullImageUrl(userProfile?.avatar)}
                       alt="Người dùng hiện tại"
                       className="rounded-circle"
                       style={{ width: '32px', height: '32px', objectFit: 'cover' }}
                     />
-                    <div className="flex-grow-1">
-                      <div className="input-group">
+                    <div className="flex-grow-1 position-relative">
+                      <div className="d-flex align-items-center">
                         <input
                           type="text"
-                          className="form-control"
+                          className="form-control rounded-pill comment-input"
                           placeholder="Viết bình luận..."
                           value={commentInput}
-                          onChange={(e) => setCommentInput(e.target.value)}
-                          onKeyPress={(e) => {
+                          onChange={(e) => {
+                            // Đánh dấu người dùng đang nhập liệu
+                            isUserTyping.current = true;
+                            setCommentInput(e.target.value);
+                          }}
+                          onFocus={() => {
+                            // Đánh dấu người dùng đang nhập liệu
+                            isUserTyping.current = true;
+                          }}
+                          onKeyDown={(e) => {
                             if (e.key === 'Enter') {
+                              e.preventDefault(); // Ngăn chặn hành vi mặc định của phím Enter
                               handleComment(commentInput);
                             }
                           }}
                         />
                         <button
-                          className="btn btn-primary"
+                          className="btn btn-link text-primary ms-2"
                           onClick={() => handleComment(commentInput)}
-                          disabled={isLoading.comment_new}
+                          disabled={isLoading.comment_new || !commentInput?.trim()}
                         >
-                          {isLoading.comment_new ? (
-                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                          ) : (
-                            'Bình luận'
-                          )}
+                          <i className="bi bi-send-fill"></i>
                         </button>
                       </div>
                     </div>
@@ -788,9 +1046,10 @@ const PostDetail = () => {
         />
       )}
 
-      {/* Image Viewer Modal */}
+      {/* Image Viewer Modal - Only render when needed */}
       {showImageViewer && post && (
         <ImageViewerModal
+          key="image-viewer-modal" // Add a key to ensure proper mounting/unmounting
           show={showImageViewer}
           onHide={() => setShowImageViewer(false)}
           images={post.isShared && post.originalPost ? post.originalPost.images : post.images}

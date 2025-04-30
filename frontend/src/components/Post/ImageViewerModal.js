@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo, useRef } from 'react';
 import { Modal } from 'react-bootstrap';
 import './ImageViewerModal.css';
 
-const ImageViewerModal = ({ show, onHide, images, initialIndex = 0, getFullImageUrl }) => {
+// Sử dụng memo để tránh re-render không cần thiết
+const ImageViewerModal = memo(({ show, onHide, images, initialIndex = 0, getFullImageUrl }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadedImages, setLoadedImages] = useState({});
+  const imageRef = useRef(null);
 
   // Reset current index when modal is opened
   useEffect(() => {
@@ -13,10 +16,44 @@ const ImageViewerModal = ({ show, onHide, images, initialIndex = 0, getFullImage
     }
   }, [show, initialIndex]);
 
-  // Reset loading state when image changes
+  // Reset loading state when image changes, but only if we haven't loaded this image before
   useEffect(() => {
-    setIsLoading(true);
-  }, [currentIndex]);
+    if (currentIndex in loadedImages) {
+      // Image already loaded before, don't set loading state
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+  }, [currentIndex, loadedImages]);
+
+  // Preload adjacent images to prevent continuous loading
+  useEffect(() => {
+    if (!show || !images || images.length <= 1) return;
+
+    // Preload next and previous images
+    const preloadImage = (index) => {
+      if (index >= 0 && index < images.length && !(index in loadedImages)) {
+        const img = new Image();
+        const imgSrc = getFullImageUrl ? getFullImageUrl(images[index]) : images[index];
+        img.src = imgSrc;
+        img.onload = () => {
+          // Mark as loaded
+          setLoadedImages(prev => ({
+            ...prev,
+            [index]: true
+          }));
+        };
+      }
+    };
+
+    // Preload next image
+    const nextIndex = currentIndex < images.length - 1 ? currentIndex + 1 : 0;
+    // Preload previous image
+    const prevIndex = currentIndex > 0 ? currentIndex - 1 : images.length - 1;
+
+    preloadImage(nextIndex);
+    preloadImage(prevIndex);
+  }, [show, currentIndex, images, loadedImages, getFullImageUrl]);
 
   const handlePrev = (e) => {
     e.stopPropagation();
@@ -30,6 +67,11 @@ const ImageViewerModal = ({ show, onHide, images, initialIndex = 0, getFullImage
 
   const handleImageLoad = () => {
     setIsLoading(false);
+    // Mark this image as loaded
+    setLoadedImages(prev => ({
+      ...prev,
+      [currentIndex]: true
+    }));
   };
 
   // If no images or empty array, don't render
@@ -67,6 +109,7 @@ const ImageViewerModal = ({ show, onHide, images, initialIndex = 0, getFullImage
             </div>
           )}
           <img
+            ref={imageRef}
             src={imageUrl}
             alt="Post content"
             className={`full-image ${isLoading ? 'loading' : 'loaded'}`}
@@ -96,6 +139,6 @@ const ImageViewerModal = ({ show, onHide, images, initialIndex = 0, getFullImage
       </Modal.Body>
     </Modal>
   );
-};
+});
 
 export default ImageViewerModal;

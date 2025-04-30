@@ -15,7 +15,8 @@ public class Comment {
     private String parentId;
     private List<Comment> replies;
     private int depth;  // Thêm trường depth để theo dõi độ sâu của comment
-    
+    private List<String> likes; // Danh sách người dùng đã thích bình luận
+
     @Transient
     private User user;
 
@@ -23,6 +24,7 @@ public class Comment {
         this.id = UUID.randomUUID().toString();
         this.createdAt = new Date();
         this.replies = new ArrayList<>();
+        this.likes = new ArrayList<>();
         this.depth = 0;
     }
 
@@ -86,4 +88,7 @@ public class Comment {
 
     public Date getCreatedAt() { return createdAt; }
     public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
+
+    public List<String> getLikes() { return likes; }
+    public void setLikes(List<String> likes) { this.likes = likes; }
 }
