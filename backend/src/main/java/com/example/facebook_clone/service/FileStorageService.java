@@ -31,7 +31,12 @@ public class FileStorageService {
     public String storeFile(MultipartFile file) {
         try {
             String fileName = StringUtils.cleanPath(file.getOriginalFilename());
-            // Thêm timestamp vào tên file để đảm bảo tính duy nhất và tránh cache
+
+            // Ensure filename is safe and unique
+            // Replace spaces with underscores and remove special characters
+            fileName = fileName.replaceAll("\\s+", "_").replaceAll("[^a-zA-Z0-9._-]", "");
+
+            // Add timestamp to ensure uniqueness but keep it consistent
             long timestamp = System.currentTimeMillis();
             String newFileName = timestamp + "_" + fileName;
 

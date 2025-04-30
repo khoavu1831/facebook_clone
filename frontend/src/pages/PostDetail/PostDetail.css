@@ -79,6 +79,9 @@
 
 .comment-thread {
   margin-bottom: 16px;
+  transition: background-color 0.5s ease;
+  padding: 8px;
+  border-radius: 8px;
 }
 
 .comment-text {
@@ -90,9 +93,76 @@
   word-wrap: break-word;
 }
 
-.replies-container {
-  margin-top: 8px;
+.comment-input {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  padding: 8px 40px 8px 15px;
+  /* Add right padding for button */
+  height: 38px;
+  /* Ensure consistent height */
 }
+
+.comment-actions {
+  font-size: 0.8rem;
+}
+
+.comment-actions button {
+  font-size: 0.8rem;
+  color: #65676b;
+  text-decoration: none;
+}
+
+.comment-actions button:hover {
+  text-decoration: underline;
+}
+
+.replies-container {
+  margin-top: 0.5rem;
+  border-left: 1px solid #dee2e6;
+  padding-left: 1rem;
+  width: 100%;
+  clear: both;
+  position: relative;
+}
+
+/* Styles for view replies button */
+.view-replies-wrapper {
+  margin-left: 1rem;
+  position: relative;
+  z-index: 1;
+  display: block;
+  clear: both;
+  margin-bottom: 0.5rem;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.view-replies-btn {
+  font-size: 0.8rem;
+  font-weight: 500;
+  position: relative;
+  display: flex;
+  align-items: center;
+  color: #1877f2 !important;
+  padding: 0.25rem 0.5rem;
+}
+
+.view-replies-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.5rem;
+}
+
+.view-replies-icon i {
+  font-size: 0.9rem;
+}
+
+.view-replies-text {
+  display: inline-block;
+}
+
+
 
 .media-grid {
   display: grid;

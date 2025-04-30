@@ -110,6 +110,21 @@ public class NotificationService {
         return createNotification(postOwnerId, likerId, "LIKE", content, postId);
     }
 
+    // Tạo thông báo khi có người thích bình luận
+    public Notification createCommentLikeNotification(String commentOwnerId, String likerId, String commentId) {
+        // Không tạo thông báo nếu người thích là chủ bình luận
+        if (commentOwnerId.equals(likerId)) {
+            return null;
+        }
+
+        Optional<User> likerOpt = userRepository.findById(likerId);
+        String content = likerOpt.isPresent()
+            ? likerOpt.get().getFirstName() + " " + likerOpt.get().getLastName() + " liked your comment"
+            : "Someone liked your comment";
+
+        return createNotification(commentOwnerId, likerId, "COMMENT_LIKE", content, commentId);
+    }
+
     // Lấy tất cả thông báo của một người dùng
     public List<Notification> getNotificationsForUser(String userId) {
         return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
