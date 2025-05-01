@@ -686,7 +686,7 @@ const PostDetail = () => {
 
                 {showAllReplies && comment.replies?.length > 0 && (
                   <button
-                    className="btn btn-link btn-sm text-primary mb-2"
+                    className="btn btn-link btn-sm text-primary"
                     onClick={() => setShowAllReplies(false)}
                   >
                     <i className="bi bi-chevron-up me-1"></i>

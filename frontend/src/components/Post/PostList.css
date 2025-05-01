@@ -125,7 +125,7 @@
 }
 
 .comment-thread {
-  margin-bottom: 1rem;
+  /* margin-bottom: 1rem; */
 }
 
 .comment-main {
@@ -187,7 +187,7 @@
   z-index: 1;
   display: block;
   clear: both;
-  margin-bottom: 0.5rem;
+  /* margin-bottom: 0.5rem; */
   margin-top: 0.5rem;
   width: 100%;
 }
