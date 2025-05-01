@@ -17,6 +17,9 @@ import com.example.facebook_clone.model.User;
 import com.example.facebook_clone.repository.UserRepository;
 import com.example.facebook_clone.service.FileStorageService;
 
+/**
+ * Controller xử lý các API liên quan đến hồ sơ người dùng
+ */
 @RestController
 @RequestMapping("/api/profile")
 public class ProfileController {
@@ -27,6 +30,12 @@ public class ProfileController {
     @Autowired
     private FileStorageService fileStorageService;
 
+    /**
+     * Lấy thông tin hồ sơ người dùng
+     *
+     * @param userId ID người dùng cần lấy thông tin
+     * @return Thông tin hồ sơ người dùng
+     */
     @GetMapping("/{userId}")
     public ResponseEntity<?> getProfile(@PathVariable String userId) {
         try {
@@ -37,14 +46,27 @@ public class ProfileController {
             }
 
             return ResponseEntity.ok(userOptional.get());
-
         } catch (Exception e) {
-            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error processing request: " + e.getMessage());
+                    .body("Lỗi khi xử lý yêu cầu: " + e.getMessage());
         }
     }
 
+    /**
+     * Cập nhật thông tin hồ sơ người dùng
+     *
+     * @param userId ID người dùng cần cập nhật
+     * @param name Tên đầy đủ
+     * @param email Email
+     * @param bio Tiểu sử
+     * @param gender Giới tính
+     * @param day Ngày sinh
+     * @param month Tháng sinh
+     * @param year Năm sinh
+     * @param avatar Ảnh đại diện mới (nếu có)
+     * @param coverPhoto Ảnh bìa mới (nếu có)
+     * @return Thông tin người dùng đã cập nhật
+     */
     @PostMapping("/update")
     public ResponseEntity<?> updateProfile(
             @RequestParam("userId") String userId,
@@ -65,8 +87,16 @@ public class ProfileController {
             }
 
             User user = userOptional.get();
-            user.setFirstName(name.split(" ")[0]);
-            user.setLastName(name.substring(name.indexOf(" ") + 1));
+
+            // Xử lý tên đầy đủ
+            if (name.contains(" ")) {
+                user.setFirstName(name.split(" ")[0]);
+                user.setLastName(name.substring(name.indexOf(" ") + 1));
+            } else {
+                user.setFirstName(name);
+                user.setLastName("");
+            }
+
             user.setEmail(email);
             user.setBio(bio);
             user.setGender(gender);
@@ -77,31 +107,21 @@ public class ProfileController {
             // Chỉ cập nhật ảnh đại diện nếu có file mới
             if (avatar != null && !avatar.isEmpty()) {
                 String avatarFileName = fileStorageService.storeFile(avatar);
-                // Thêm timestamp vào đường dẫn để tránh cache
                 user.setAvatar("/uploads/" + avatarFileName);
-                System.out.println("Updated avatar URL: " + user.getAvatar());
             }
 
             // Chỉ cập nhật ảnh bìa nếu có file mới
             if (coverPhoto != null && !coverPhoto.isEmpty()) {
                 String coverFileName = fileStorageService.storeFile(coverPhoto);
-                // Thêm timestamp vào đường dẫn để tránh cache
                 user.setCoverPhoto("/uploads/" + coverFileName);
-                System.out.println("Updated cover URL: " + user.getCoverPhoto());
             }
 
             User savedUser = userRepository.save(user);
             return ResponseEntity.ok(savedUser);
-
         } catch (Exception e) {
-            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error updating profile: " + e.getMessage());
+                    .body("Lỗi khi cập nhật hồ sơ: " + e.getMessage());
         }
     }
 }
-
-
-
-
 

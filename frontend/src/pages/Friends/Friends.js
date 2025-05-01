@@ -2,12 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../../config/api';
 import './Friends.css';
 
+/**
+ * Lấy URL đầy đủ của hình ảnh
+ * @param {string} path - Đường dẫn hình ảnh
+ * @returns {string} URL đầy đủ của hình ảnh
+ */
 const getFullImageUrl = (path) => {
   if (!path) return '/default-imgs/avatar.png';
   if (path.startsWith('http')) return path;
   return `${API_ENDPOINTS.BASE_URL}${path}`;
 };
 
+/**
+ * Trang quản lý bạn bè
+ * Hiển thị danh sách bạn bè, lời mời kết bạn và gợi ý bạn bè
+ */
 function Friends() {
   const [friends, setFriends] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -17,61 +26,59 @@ function Friends() {
   const friendsPerPage = 6;
   const currentUser = JSON.parse(localStorage.getItem('userData'));
 
-  // Reference to track if component is mounted
+  // Tham chiếu để theo dõi xem component có đang được mount hay không
   const isMounted = useRef(true);
 
+  /**
+   * Lấy dữ liệu bạn bè, lời mời kết bạn hoặc gợi ý bạn bè dựa trên tab đang active
+   */
   const fetchData = async () => {
     try {
       let endpoint;
       switch (activeTab) {
         case 'requests':
           endpoint = `${API_ENDPOINTS.BASE_URL}/api/friends/requests/${currentUser.id}`;
-          console.log('Fetching friend requests from:', endpoint);
           const requestsResponse = await fetch(endpoint);
           const requestsData = await requestsResponse.json();
-          console.log('Friend requests data:', requestsData);
           setRequests(requestsData);
           break;
         case 'friends':
           endpoint = `${API_ENDPOINTS.BASE_URL}/api/friends/list/${currentUser.id}`;
-          console.log('Fetching friends list from:', endpoint);
           const friendsResponse = await fetch(endpoint);
           const friendsData = await friendsResponse.json();
-          console.log('Friends data:', friendsData);
           setFriends(friendsData);
           break;
         case 'suggestions':
           endpoint = `${API_ENDPOINTS.BASE_URL}/api/friends/suggestions/${currentUser.id}`;
-          console.log('Fetching friend suggestions from:', endpoint);
           const suggestionsResponse = await fetch(endpoint);
           const suggestionsData = await suggestionsResponse.json();
-          console.log('Friend suggestions data:', suggestionsData);
           setSuggestions(suggestionsData);
           break;
         default:
-          console.log('Unknown tab:', activeTab);
           break;
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Lỗi khi lấy dữ liệu:', error);
     }
   };
 
-
-
-  // Thêm hàm để lấy danh sách bạn bè định kỳ
+  /**
+   * Thiết lập lấy dữ liệu định kỳ
+   * @returns {number} ID của interval để có thể clear khi cần
+   */
   const setupPeriodicDataFetch = () => {
     // Lấy dữ liệu mới mỗi 10 giây
     return setInterval(() => {
       if (isMounted.current && currentUser?.id) {
-        console.log('Periodic data fetch in Friends component');
         fetchData();
       }
     }, 10000); // 10 giây
   };
 
+  /**
+   * Lấy dữ liệu khi component được mount hoặc khi tab thay đổi
+   */
   useEffect(() => {
-    console.log('Friends component: Fetching data for tab', activeTab);
     fetchData();
 
     // Thiết lập lấy dữ liệu định kỳ
@@ -84,6 +91,11 @@ function Friends() {
     };
   }, [activeTab, currentUser.id]);
 
+  /**
+   * Xử lý các hành động liên quan đến bạn bè (chấp nhận, từ chối, hủy kết bạn, thêm bạn)
+   * @param {string} id - ID của yêu cầu kết bạn hoặc người dùng
+   * @param {string} action - Hành động cần thực hiện ('accept', 'reject', 'unfriend', 'add')
+   */
   const handleFriendAction = async (id, action) => {
     try {
       let endpoint;
@@ -102,7 +114,6 @@ function Friends() {
 
               // Thêm vào danh sách bạn bè ngay lập tức
               const newFriend = requestToAccept.user;
-              console.log('Adding new friend to friends list:', newFriend);
 
               // Thêm vào danh sách bạn bè ngay lập tức
               setFriends(prev => {
@@ -147,8 +158,7 @@ function Friends() {
         case 'add':
           // Đánh dấu đã gửi lời mời kết bạn
           if (activeTab === 'suggestions') {
-            // Có thể thêm trạng thái "Đã gửi lời mời" cho người dùng này
-            // hoặc xóa khỏi danh sách gợi ý
+            // Xóa khỏi danh sách gợi ý
             setSuggestions(prev => prev.filter(user => user.id !== id));
           }
           endpoint = `${API_ENDPOINTS.BASE_URL}/api/friends/request`;
@@ -159,10 +169,6 @@ function Friends() {
           });
           break;
       }
-
-      console.log(`Sending ${method} request to ${endpoint}`);
-      console.log('Request body:', body);
-      console.log('Auth token:', localStorage.getItem('userToken'));
 
       try {
         // Gửi request API
@@ -175,60 +181,56 @@ function Friends() {
           body
         });
 
-        console.log('Response status:', response.status);
-
-        // Log the full response for debugging
+        // Lấy nội dung phản hồi
         const responseText = await response.text();
-        console.log('Response text:', responseText);
 
-        // Parse the response if it's JSON
+        // Phân tích phản hồi nếu là JSON
         let responseData;
         try {
           responseData = JSON.parse(responseText);
-          console.log('Parsed response data:', responseData);
         } catch (e) {
-          console.log('Response is not JSON');
+          // Phản hồi không phải là JSON
         }
 
         if (!response.ok) {
-          throw new Error(responseData?.error || responseData?.message || 'Action failed');
+          throw new Error(responseData?.error || responseData?.message || 'Hành động thất bại');
         }
-
-        console.log(`${action} action completed successfully`);
 
         // Lấy dữ liệu mới nhất từ server sau khi thực hiện hành động
         // để đảm bảo UI đồng bộ với server
         setTimeout(() => {
-          console.log('Refreshing data after action');
           fetchData();
         }, 500); // Đợi 500ms để server có thời gian xử lý
 
         return responseData;
       } catch (error) {
-        console.error('Network or parsing error:', error);
+        console.error('Lỗi mạng hoặc phân tích dữ liệu:', error);
         throw error;
       }
 
     } catch (error) {
-      console.error('Error in handleFriendAction:', error);
-      alert(`Failed to perform action: ${error.message}. Please try again.`);
+      console.error('Lỗi trong handleFriendAction:', error);
+      alert(`Không thể thực hiện hành động: ${error.message}. Vui lòng thử lại.`);
       // Nếu có lỗi, cập nhật lại dữ liệu để đồng bộ với server
       fetchData();
     }
   };
 
+  // Lọc dữ liệu hiển thị dựa trên tab đang active
   const filteredData = activeTab === 'suggestions'
     ? suggestions
     : activeTab === 'requests'
       ? requests
       : friends;
 
+  // Tính toán phân trang
   const totalPages = Math.ceil(filteredData.length / friendsPerPage);
   const startIndex = (currentPage - 1) * friendsPerPage;
   const currentItems = filteredData.slice(startIndex, startIndex + friendsPerPage);
 
   return (
     <div className="friends-page">
+      {/* Thanh bên trái */}
       <div className="sidebar">
         <h4>Bạn bè</h4>
         <ul className="nav flex-column">
@@ -236,6 +238,7 @@ function Friends() {
             <button
               className={`nav-link ${activeTab === 'requests' ? 'active' : ''}`}
               onClick={() => { setActiveTab('requests'); setCurrentPage(1); }}
+              aria-label="Xem yêu cầu kết bạn"
             >
               Yêu cầu kết bạn
             </button>
@@ -244,6 +247,7 @@ function Friends() {
             <button
               className={`nav-link ${activeTab === 'friends' ? 'active' : ''}`}
               onClick={() => { setActiveTab('friends'); setCurrentPage(1); }}
+              aria-label="Xem danh sách bạn bè"
             >
               Danh sách bạn bè
             </button>
@@ -252,6 +256,7 @@ function Friends() {
             <button
               className={`nav-link ${activeTab === 'suggestions' ? 'active' : ''}`}
               onClick={() => { setActiveTab('suggestions'); setCurrentPage(1); }}
+              aria-label="Xem gợi ý bạn bè"
             >
               Gợi ý bạn bè
             </button>
@@ -259,21 +264,31 @@ function Friends() {
         </ul>
       </div>
 
+      {/* Nội dung chính */}
       <div className="main-content">
         <h1>
           {activeTab === 'requests' ? 'Lời mời kết bạn' : activeTab === 'friends' ? 'Danh sách bạn bè' : 'Gợi ý bạn bè'}
         </h1>
+
+        {/* Hiển thị thông báo nếu không có dữ liệu */}
         {currentItems.length === 0 ? (
-          <p className="text-muted">Chưa có lời mời kết bạn nào.</p>
+          <p className="text-muted">
+            {activeTab === 'requests'
+              ? 'Chưa có lời mời kết bạn nào.'
+              : activeTab === 'friends'
+                ? 'Bạn chưa có bạn bè nào.'
+                : 'Không có gợi ý bạn bè nào.'}
+          </p>
         ) : (
           <div className="row">
+            {/* Danh sách người dùng */}
             {currentItems.map((item) => (
               <div key={item.requestId || (item.user && item.user.id) || item.id} className="col-sm-6 col-md-4 col-lg-2 mb-4">
                 <div className="card">
                   <div className="card-image-container">
                     <img
                       src={getFullImageUrl(item.user?.avatar || item.avatar)}
-                      alt={`${item.user?.firstName || item.firstName} ${item.user?.lastName || item.lastName}`}
+                      alt={`Ảnh đại diện của ${item.user?.firstName || item.firstName} ${item.user?.lastName || item.lastName}`}
                       className="card-img-top"
                     />
                   </div>
@@ -282,34 +297,43 @@ function Friends() {
                       {item.user ? `${item.user.firstName} ${item.user.lastName}` : `${item.firstName} ${item.lastName}`}
                     </h5>
                     <div className="button-group">
+                      {/* Nút cho tab yêu cầu kết bạn */}
                       {activeTab === 'requests' && (
                         <div className="button-group request-buttons">
                           <button
                             className="btn btn-primary"
                             onClick={() => handleFriendAction(item.requestId, 'accept')}
+                            aria-label={`Chấp nhận lời mời kết bạn từ ${item.user?.firstName} ${item.user?.lastName}`}
                           >
                             Chấp nhận
                           </button>
                           <button
                             className="btn btn-secondary"
                             onClick={() => handleFriendAction(item.requestId, 'reject')}
+                            aria-label={`Từ chối lời mời kết bạn từ ${item.user?.firstName} ${item.user?.lastName}`}
                           >
                             Từ chối
                           </button>
                         </div>
                       )}
+
+                      {/* Nút cho tab danh sách bạn bè */}
                       {activeTab === 'friends' && (
                         <button
                           className="btn btn-danger btn-sm"
                           onClick={() => handleFriendAction(item.id, 'unfriend')}
+                          aria-label={`Hủy kết bạn với ${item.firstName} ${item.lastName}`}
                         >
                           Hủy kết bạn
                         </button>
                       )}
+
+                      {/* Nút cho tab gợi ý bạn bè */}
                       {activeTab === 'suggestions' && (
                         <button
                           className="btn btn-primary btn-sm"
                           onClick={() => handleFriendAction(item.id, 'add')}
+                          aria-label={`Kết bạn với ${item.firstName} ${item.lastName}`}
                         >
                           Kết bạn
                         </button>
@@ -322,22 +346,25 @@ function Friends() {
           </div>
         )}
 
+        {/* Phân trang */}
         {totalPages > 1 && (
           <div className="pagination d-flex align-items-center justify-content-center">
             <button
               className="btn btn-outline-primary pagination-arrow"
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
+              aria-label="Trang trước"
             >
               &lt;
             </button>
             <span className="pagination-text mx-3">
-              Page {currentPage} of {totalPages}
+              Trang {currentPage} / {totalPages}
             </span>
             <button
               className="btn btn-outline-primary pagination-arrow"
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
+              aria-label="Trang sau"
             >
               &gt;
             </button>

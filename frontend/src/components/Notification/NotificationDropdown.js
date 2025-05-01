@@ -7,6 +7,11 @@ import { isUserLoggedIn } from '../../utils/auth';
 import { useNavigate } from 'react-router-dom';
 import './NotificationDropdown.css';
 
+/**
+ * Component hiển thị dropdown thông báo
+ * @param {Object} props - Props của component
+ * @param {Object} props.currentUser - Thông tin người dùng hiện tại
+ */
 const NotificationDropdown = ({ currentUser }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -17,7 +22,7 @@ const NotificationDropdown = ({ currentUser }) => {
   const { currentUser: contextUser } = useUser();
   const navigate = useNavigate();
 
-  // Fetch notifications when component mounts
+  // Lấy thông báo khi component được mount
   useEffect(() => {
     if (currentUser?.id) {
       fetchNotifications();
@@ -26,7 +31,7 @@ const NotificationDropdown = ({ currentUser }) => {
     }
   }, [currentUser?.id]);
 
-  // Close dropdown when clicking outside
+  // Đóng dropdown khi click bên ngoài
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -40,25 +45,28 @@ const NotificationDropdown = ({ currentUser }) => {
     };
   }, []);
 
-  // Subscribe to WebSocket notifications
+  /**
+   * Đăng ký nhận thông báo qua WebSocket
+   */
   const subscribeToNotifications = async () => {
     try {
       await webSocketService.connect();
 
       webSocketService.subscribeToNotifications(currentUser.id, (data) => {
-        console.log('Received notification:', data);
-        // Add new notification to the list
+        // Thêm thông báo mới vào danh sách
         if (data.notification) {
           setNotifications(prev => [data, ...prev]);
           setUnreadCount(prev => prev + 1);
         }
       });
     } catch (error) {
-      console.error('Failed to subscribe to notifications:', error);
+      console.error('Lỗi khi đăng ký nhận thông báo:', error);
     }
   };
 
-  // Fetch notifications from API
+  /**
+   * Lấy danh sách thông báo từ API
+   */
   const fetchNotifications = async () => {
     try {
       setIsLoading(true);
@@ -69,20 +77,22 @@ const NotificationDropdown = ({ currentUser }) => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch notifications');
+        throw new Error('Không thể lấy thông báo');
       }
 
       const data = await response.json();
       setNotifications(data);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error('Lỗi khi lấy thông báo:', error);
       showError('Không thể tải thông báo');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Fetch unread count from API
+  /**
+   * Lấy số lượng thông báo chưa đọc từ API
+   */
   const fetchUnreadCount = async () => {
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/notifications/unread-count/${currentUser.id}`, {
@@ -92,17 +102,19 @@ const NotificationDropdown = ({ currentUser }) => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch unread count');
+        throw new Error('Không thể lấy số lượng thông báo chưa đọc');
       }
 
       const data = await response.json();
       setUnreadCount(data.count);
     } catch (error) {
-      console.error('Error fetching unread count:', error);
+      console.error('Lỗi khi lấy số lượng thông báo chưa đọc:', error);
     }
   };
 
-  // Delete all notifications
+  /**
+   * Xóa tất cả thông báo
+   */
   const deleteAllNotifications = async () => {
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/notifications/all/${currentUser.id}`, {
@@ -113,19 +125,22 @@ const NotificationDropdown = ({ currentUser }) => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete all notifications');
+        throw new Error('Không thể xóa tất cả thông báo');
       }
 
-      // Clear all notifications from state
+      // Xóa tất cả thông báo khỏi state
       setNotifications([]);
       setUnreadCount(0);
     } catch (error) {
-      console.error('Error deleting all notifications:', error);
+      console.error('Lỗi khi xóa tất cả thông báo:', error);
       showError('Không thể xóa thông báo');
     }
   };
 
-  // Mark a notification as read
+  /**
+   * Đánh dấu thông báo đã đọc
+   * @param {string} notificationId - ID của thông báo
+   */
   const markAsRead = async (notificationId) => {
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/notifications/mark-read/${notificationId}`, {
@@ -136,10 +151,10 @@ const NotificationDropdown = ({ currentUser }) => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to mark notification as read');
+        throw new Error('Không thể đánh dấu thông báo đã đọc');
       }
 
-      // Update the notification in the state
+      // Cập nhật thông báo trong state
       setNotifications(prevNotifications =>
         prevNotifications.map(notification =>
           notification.notification.id === notificationId
@@ -148,34 +163,35 @@ const NotificationDropdown = ({ currentUser }) => {
         )
       );
 
-      // Update unread count
+      // Cập nhật số lượng thông báo chưa đọc
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      console.error('Lỗi khi đánh dấu thông báo đã đọc:', error);
     }
   };
 
-  // Handle notification click based on type
+  /**
+   * Xử lý khi click vào thông báo dựa trên loại
+   * @param {Object} notification - Thông tin thông báo
+   */
   const handleNotificationClick = (notification) => {
-    // Close dropdown first
+    // Đóng dropdown trước
     setIsOpen(false);
 
-    // Mark notification as read if it's unread
+    // Đánh dấu thông báo đã đọc nếu chưa đọc
     if (!notification.notification.read) {
       markAsRead(notification.notification.id);
     }
 
-    // Verify user is logged in
+    // Kiểm tra người dùng đã đăng nhập chưa
     if (!isUserLoggedIn()) {
-      console.error('User not authenticated, redirecting to login');
       navigate('/login');
       return;
     }
 
-    // Use the user from context if available, otherwise use the prop
+    // Sử dụng người dùng từ context nếu có, nếu không thì sử dụng từ prop
     const user = contextUser || currentUser;
     if (!user || !user.id) {
-      console.error('User data not found, redirecting to login');
       navigate('/login');
       return;
     }
@@ -356,7 +372,11 @@ const NotificationDropdown = ({ currentUser }) => {
     }
   };
 
-  // Get notification icon based on type
+  /**
+   * Lấy biểu tượng thông báo dựa trên loại
+   * @param {string} type - Loại thông báo
+   * @returns {JSX.Element} Biểu tượng tương ứng
+   */
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'FRIEND_REQUEST':
@@ -376,13 +396,18 @@ const NotificationDropdown = ({ currentUser }) => {
     }
   };
 
-  // Helper function to navigate to a post
+  /**
+   * Hàm hỗ trợ điều hướng đến bài đăng
+   * @param {string} postId - ID của bài đăng
+   */
   const navigateToPost = (postId) => {
     // Luôn điều hướng đến trang chi tiết bài viết
     navigate(`/posts/${postId}`);
   };
 
-  // Toggle dropdown
+  /**
+   * Bật/tắt dropdown
+   */
   const toggleDropdown = () => {
     setIsOpen(!isOpen);
   };
@@ -392,7 +417,7 @@ const NotificationDropdown = ({ currentUser }) => {
       <div className="notification-icon" onClick={toggleDropdown}>
         <img
           src="/img/icons/notify.png"
-          alt="Notification Logo"
+          alt="Biểu tượng thông báo"
           style={{ width: "36px", height: "36px" }}
         />
         {unreadCount > 0 && (
@@ -403,11 +428,12 @@ const NotificationDropdown = ({ currentUser }) => {
       {isOpen && (
         <div className="notification-menu">
           <div className="notification-header">
-            <h6 className="m-0">Notifications</h6>
+            <h6 className="m-0">Thông báo</h6>
             {notifications.length > 0 && (
               <button
                 className="btn btn-sm btn-link text-danger"
                 onClick={deleteAllNotifications}
+                aria-label="Xóa tất cả thông báo"
               >
                 Xóa tất cả
               </button>
@@ -418,7 +444,7 @@ const NotificationDropdown = ({ currentUser }) => {
             {isLoading ? (
               <div className="text-center p-3">
                 <div className="spinner-border spinner-border-sm text-primary" role="status">
-                  <span className="visually-hidden">Loading...</span>
+                  <span className="visually-hidden">Đang tải...</span>
                 </div>
               </div>
             ) : notifications.length > 0 ? (
@@ -441,7 +467,7 @@ const NotificationDropdown = ({ currentUser }) => {
               ))
             ) : (
               <div className="text-center p-3 text-muted">
-                No notifications
+                Không có thông báo
               </div>
             )}
           </div>

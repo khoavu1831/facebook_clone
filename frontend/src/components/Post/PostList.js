@@ -8,16 +8,31 @@ import PostOptionsMenu from './PostOptionsMenu';
 import ImageViewerModal from './ImageViewerModal';
 import { useNavigate } from 'react-router-dom';
 
-// Component PostContent được memo để tránh render lại không cần thiết
+/**
+ * Component hiển thị nội dung bài đăng, được memo để tránh render lại không cần thiết
+ * @param {Object} props - Props của component
+ * @param {Object} props.post - Thông tin bài đăng
+ * @param {Function} props.onImageClick - Hàm xử lý khi click vào hình ảnh
+ */
 const PostContent = memo(({ post, onImageClick }) => {
   const isSharedPost = post.isShared || post.shared;
 
+  /**
+   * Lấy URL đầy đủ của hình ảnh avatar
+   * @param {string} path - Đường dẫn hình ảnh
+   * @returns {string} URL đầy đủ của hình ảnh
+   */
   const getFullImageUrl = (path) => {
     if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http') || path.startsWith('blob')) return path;
     return `${API_ENDPOINTS.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
   };
 
+  /**
+   * Lấy URL đầy đủ của media (hình ảnh, video)
+   * @param {string} path - Đường dẫn media
+   * @returns {string|null} URL đầy đủ của media hoặc null nếu không có
+   */
   const getFullMediaUrl = (path) => {
     if (!path) return null;
     if (path.startsWith('http') || path.startsWith('blob')) return path;
@@ -142,6 +157,18 @@ const PostContent = memo(({ post, onImageClick }) => {
   );
 });
 
+/**
+ * Component hiển thị bình luận
+ * @param {Object} props - Props của component
+ * @param {Object} props.comment - Thông tin bình luận
+ * @param {string} props.postId - ID của bài đăng
+ * @param {Function} props.onReply - Hàm xử lý khi trả lời bình luận
+ * @param {Function} props.onDelete - Hàm xử lý khi xóa bình luận
+ * @param {Object} props.currentUser - Thông tin người dùng hiện tại
+ * @param {Object} props.userProfile - Thông tin profile người dùng
+ * @param {Function} props.getFullImageUrl - Hàm lấy URL đầy đủ của hình ảnh
+ * @param {number} props.depth - Độ sâu của bình luận (mặc định: 0)
+ */
 const Comment = ({ comment, postId, onReply, onDelete, currentUser, userProfile, getFullImageUrl, depth = 0 }) => {
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyContent, setReplyContent] = useState('');
@@ -163,6 +190,9 @@ const Comment = ({ comment, postId, onReply, onDelete, currentUser, userProfile,
   const MAX_VISIBLE_REPLIES = 0; // Mặc định không hiển thị phản hồi con
   const MAX_DEPTH = 4; // Giới hạn độ sâu của nested replies để tránh quá nhiều indent
 
+  /**
+   * Xử lý khi trả lời bình luận
+   */
   const handleReply = async () => {
     if (!replyContent.trim() || isLoading) return;
 
@@ -173,7 +203,7 @@ const Comment = ({ comment, postId, onReply, onDelete, currentUser, userProfile,
       setShowReplyInput(false);
     } catch (error) {
       // Không cần hiển thị alert ở đây nữa vì đã được xử lý ở handleComment
-      console.error('Error in handleReply:', error);
+      console.error('Lỗi khi trả lời bình luận:', error);
     } finally {
       setIsLoading(false);
     }
@@ -295,19 +325,44 @@ const Comment = ({ comment, postId, onReply, onDelete, currentUser, userProfile,
   );
 };
 
-// Component PostItem để render từng bài đăng, được memo
+/**
+ * Component hiển thị một bài đăng, được memo để tránh render lại không cần thiết
+ * @param {Object} props - Props của component
+ * @param {Object} props.post - Thông tin bài đăng
+ * @param {Object} props.currentUser - Thông tin người dùng hiện tại
+ * @param {Object} props.userProfile - Thông tin profile người dùng
+ * @param {Function} props.handleLike - Hàm xử lý khi thích bài đăng
+ * @param {Function} props.handleComment - Hàm xử lý khi bình luận bài đăng
+ * @param {Function} props.handleShareClick - Hàm xử lý khi chia sẻ bài đăng
+ * @param {Function} props.handleDeletePost - Hàm xử lý khi xóa bài đăng
+ * @param {Function} props.handleEditPost - Hàm xử lý khi chỉnh sửa bài đăng
+ * @param {Function} props.handleEditPostWithMedia - Hàm xử lý khi chỉnh sửa bài đăng có media
+ * @param {Function} props.handleDeleteComment - Hàm xử lý khi xóa bình luận
+ * @param {Object} props.commentInputs - Dữ liệu nhập vào của bình luận
+ * @param {Function} props.setCommentInputs - Hàm cập nhật dữ liệu nhập vào của bình luận
+ * @param {Object} props.isLoading - Trạng thái đang tải
+ */
 const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComment, handleShareClick, handleDeletePost, handleEditPost, handleEditPostWithMedia, handleDeleteComment, commentInputs, setCommentInputs, isLoading }) => {
   const navigate = useNavigate();
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedImages, setSelectedImages] = useState([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
+  /**
+   * Lấy URL đầy đủ của hình ảnh
+   * @param {string} path - Đường dẫn hình ảnh
+   * @returns {string} URL đầy đủ của hình ảnh
+   */
   const getFullImageUrl = useCallback((path) => {
     if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http') || path.startsWith('blob')) return path;
     return `${API_ENDPOINTS.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
   }, []);
 
+  /**
+   * Xử lý khi click vào avatar
+   * @param {string} userId - ID của người dùng
+   */
   const handleAvatarClick = (userId) => {
     navigate(`/profile/${userId}`);
   };
@@ -324,7 +379,10 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
   const [keepImages, setKeepImages] = useState(post.images || []);
   const [keepVideos, setKeepVideos] = useState(post.videos || []);
 
-  // Xử lý khi thêm media mới khi đang chỉnh sửa
+  /**
+   * Xử lý khi thêm media mới khi đang chỉnh sửa
+   * @param {Event} e - Sự kiện thay đổi input
+   */
   const handleEditMediaChange = (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
@@ -334,7 +392,7 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
     }
   };
 
-  // Cleanup blob URLs when component unmounts
+  // Dọn dẹp URL blob khi component unmount
   useEffect(() => {
     return () => {
       // Xóa các URL object đã tạo để tránh memory leak
@@ -346,16 +404,26 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
     };
   }, [editMediaPreview]);
 
-  // Xử lý khi xóa media đã có
+  /**
+   * Xử lý khi xóa hình ảnh đã có
+   * @param {number} index - Vị trí của hình ảnh
+   */
   const handleRemoveExistingImage = (index) => {
     setKeepImages(prevImages => prevImages.filter((_, i) => i !== index));
   };
 
+  /**
+   * Xử lý khi xóa video đã có
+   * @param {number} index - Vị trí của video
+   */
   const handleRemoveExistingVideo = (index) => {
     setKeepVideos(prevVideos => prevVideos.filter((_, i) => i !== index));
   };
 
-  // Xử lý khi xóa media mới thêm vào
+  /**
+   * Xử lý khi xóa media mới thêm vào
+   * @param {number} index - Vị trí của media
+   */
   const handleRemoveNewMedia = (index) => {
     // Lấy URL của preview để xóa
     const previewUrl = editMediaPreview[index];
@@ -368,7 +436,9 @@ const PostItem = memo(({ post, currentUser, userProfile, handleLike, handleComme
     setEditMediaPreview(prevPreviews => prevPreviews.filter((_, i) => i !== index));
   };
 
-  // Reset edit state khi hủy chỉnh sửa
+  /**
+   * Đặt lại trạng thái chỉnh sửa khi hủy
+   */
   const resetEditState = () => {
     // Đóng form edit
     setIsEditing(false);

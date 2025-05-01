@@ -2,55 +2,65 @@ import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import { API_ENDPOINTS } from '../config/api';
 
+/**
+ * Dịch vụ WebSocket để xử lý kết nối thời gian thực
+ * Quản lý các kết nối và đăng ký cho bài viết, bạn bè, tin nhắn và thông báo
+ */
 class WebSocketService {
     constructor() {
+        // Client STOMP
         this.stompClient = null;
-        this.subscriptions = new Map();
-        this.friendSubscriptions = new Map();
-        this.messageSubscriptions = new Map();
-        this.notificationSubscriptions = new Map();
+
+        // Các Map lưu trữ đăng ký
+        this.subscriptions = new Map(); // Đăng ký cho bài viết
+        this.friendSubscriptions = new Map(); // Đăng ký cho cập nhật bạn bè
+        this.messageSubscriptions = new Map(); // Đăng ký cho tin nhắn
+        this.notificationSubscriptions = new Map(); // Đăng ký cho thông báo
+
+        // Trạng thái kết nối
         this.connected = false;
         this.connectPromise = null;
+
+        // Cấu hình kết nối lại
         this.connectionAttempts = 0;
         this.maxAttempts = 5;
         this.reconnectTimeout = null;
         this.reconnectDelay = 5000;
     }
 
+    /**
+     * Kết nối đến WebSocket server
+     * @returns {Promise} Promise kết nối
+     */
     async connect() {
-        // If already connected, just return
+        // Nếu đã kết nối, trả về ngay
         if (this.connected && this.stompClient) {
-            console.log('WebSocket already connected, reusing connection');
             return Promise.resolve();
         }
 
-        // If connection is in progress, return the existing promise
+        // Nếu kết nối đang trong tiến trình, trả về promise hiện tại
         if (this.connectPromise) {
-            console.log('WebSocket connection in progress, waiting for it to complete');
             return this.connectPromise;
         }
 
-        console.log('Starting new WebSocket connection');
-
         this.connectPromise = new Promise((resolve, reject) => {
             try {
+                // Kiểm tra số lần thử kết nối
                 if (this.connectionAttempts >= this.maxAttempts) {
-                    console.log('Max connection attempts reached, resetting connection');
                     this.resetConnection();
-                    this.connectionAttempts = 0; // Reset attempts to allow future connections
-                    reject(new Error('Max connection attempts reached'));
+                    this.connectionAttempts = 0; // Reset số lần thử để cho phép kết nối trong tương lai
+                    reject(new Error('Đã đạt số lần kết nối tối đa'));
                     return;
                 }
 
                 this.connectionAttempts++;
-                console.log(`Connection attempt ${this.connectionAttempts} of ${this.maxAttempts}`);
 
                 // Tạo một SockJS socket mới
                 const socket = new SockJS(API_ENDPOINTS.WS_URL);
 
                 // Thêm xử lý lỗi cho socket
                 socket.onerror = (error) => {
-                    console.error('SockJS socket error:', error);
+                    console.error('Lỗi SockJS socket:', error);
                 };
 
                 this.stompClient = new Client({
@@ -65,15 +75,13 @@ class WebSocketService {
                     heartbeatIncoming: 25000,
                     heartbeatOutgoing: 25000,
                     onConnect: () => {
-                        console.log('WebSocket Connected Successfully');
                         this.connected = true;
-                        this.connectionAttempts = 0; // Reset attempts on successful connection
+                        this.connectionAttempts = 0; // Reset số lần thử khi kết nối thành công
                         this.connectPromise = null;
                         this.resubscribeAll();
                         resolve();
                     },
                     onDisconnect: () => {
-                        console.log('WebSocket Disconnected');
                         this.connected = false;
                         this.connectPromise = null;
 
@@ -83,7 +91,7 @@ class WebSocketService {
                         }
                     },
                     onStompError: (frame) => {
-                        console.error('STOMP Error:', frame);
+                        console.error('Lỗi STOMP:', frame);
                         this.connected = false;
                         this.connectPromise = null;
 
@@ -95,7 +103,6 @@ class WebSocketService {
                         }
                     },
                     onWebSocketClose: () => {
-                        console.log('WebSocket Connection Closed');
                         this.connected = false;
                         this.connectPromise = null;
 
@@ -104,7 +111,7 @@ class WebSocketService {
                         }
                     },
                     onWebSocketError: (event) => {
-                        console.error('WebSocket Error:', event);
+                        console.error('Lỗi WebSocket:', event);
                         this.connected = false;
                         this.connectPromise = null;
 
@@ -115,10 +122,9 @@ class WebSocketService {
                 });
 
                 // Kích hoạt kết nối
-                console.log('Activating STOMP client...');
                 this.stompClient.activate();
             } catch (error) {
-                console.error('WebSocket Connection error:', error);
+                console.error('Lỗi kết nối WebSocket:', error);
                 this.connected = false;
                 this.connectPromise = null;
 
@@ -134,8 +140,10 @@ class WebSocketService {
         return this.connectPromise;
     }
 
+    /**
+     * Đặt lại kết nối WebSocket
+     */
     resetConnection() {
-        console.log('Resetting WebSocket connection');
         this.connected = false;
         this.connectPromise = null;
 
@@ -149,30 +157,29 @@ class WebSocketService {
 
         if (this.stompClient) {
             try {
-                // Save current subscriptions before deactivating
+                // Lưu các đăng ký hiện tại trước khi hủy kích hoạt
                 const currentSubscriptions = new Map(this.subscriptions);
                 const currentFriendSubscriptions = new Map(this.friendSubscriptions);
                 const currentMessageSubscriptions = new Map(this.messageSubscriptions);
                 const currentNotificationSubscriptions = new Map(this.notificationSubscriptions);
 
-                // Clear subscriptions maps before deactivating
+                // Xóa các map đăng ký trước khi hủy kích hoạt
                 this.subscriptions.clear();
                 this.friendSubscriptions.clear();
                 this.messageSubscriptions.clear();
                 this.notificationSubscriptions.clear();
 
-                // Deactivate client
+                // Hủy kích hoạt client
                 this.stompClient.deactivate();
-                console.log('STOMP client deactivated');
 
-                // Restore subscription maps for resubscribing later
+                // Khôi phục các map đăng ký để đăng ký lại sau
                 this.subscriptions = currentSubscriptions;
                 this.friendSubscriptions = currentFriendSubscriptions;
                 this.messageSubscriptions = currentMessageSubscriptions;
                 this.notificationSubscriptions = currentNotificationSubscriptions;
             } catch (e) {
-                console.error('Error deactivating STOMP client:', e);
-                // Clear subscriptions on error
+                console.error('Lỗi khi hủy kích hoạt STOMP client:', e);
+                // Xóa các đăng ký khi có lỗi
                 this.subscriptions.clear();
                 this.friendSubscriptions.clear();
                 this.messageSubscriptions.clear();
@@ -183,6 +190,9 @@ class WebSocketService {
         }
     }
 
+    /**
+     * Kết nối lại với độ trễ tăng dần
+     */
     reconnectWithDelay() {
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
@@ -192,96 +202,88 @@ class WebSocketService {
         // Nhưng giới hạn tối đa là 30 giây
         const delay = Math.min(this.reconnectDelay * Math.pow(1.5, this.connectionAttempts - 1), 30000);
 
-        console.log(`Scheduling reconnect in ${delay}ms (Attempt ${this.connectionAttempts}/${this.maxAttempts})`);
-
         this.reconnectTimeout = setTimeout(() => {
             if (this.connectionAttempts < this.maxAttempts) {
-                console.log(`Attempting to reconnect... (Attempt ${this.connectionAttempts + 1}/${this.maxAttempts})`);
                 this.connect().catch(error => {
-                    console.error('Reconnect attempt failed:', error);
+                    console.error('Lỗi khi thử kết nối lại:', error);
                 });
             } else {
-                console.log('Max reconnection attempts reached, giving up');
-                // Reset connection attempts to allow future manual connections
+                // Reset số lần thử kết nối để cho phép kết nối thủ công trong tương lai
                 this.connectionAttempts = 0;
             }
         }, delay);
     }
 
+    /**
+     * Đăng ký lại tất cả các chủ đề sau khi kết nối lại
+     */
     async resubscribeAll() {
-        console.log('Resubscribing to all topics');
-
-        // Resubscribe to posts
+        // Đăng ký lại cho bài viết
         const subscriptions = new Map(this.subscriptions);
         const tempSubscriptions = new Map(this.subscriptions);
         this.subscriptions.clear();
 
-        console.log(`Resubscribing to ${subscriptions.size} posts`);
         for (const [postId, { callback }] of subscriptions) {
             try {
                 await this.subscribeToPost(postId, callback);
-                console.log(`Successfully resubscribed to post: ${postId}`);
             } catch (error) {
-                console.error(`Failed to resubscribe to post ${postId}:`, error);
-                // Restore the original subscription in the map
+                console.error(`Lỗi khi đăng ký lại bài viết ${postId}:`, error);
+                // Khôi phục đăng ký gốc trong map
                 this.subscriptions.set(postId, tempSubscriptions.get(postId));
             }
         }
 
-        // Resubscribe to friend updates
+        // Đăng ký lại cho cập nhật bạn bè
         const friendSubscriptions = new Map(this.friendSubscriptions);
         const tempFriendSubscriptions = new Map(this.friendSubscriptions);
         this.friendSubscriptions.clear();
 
-        console.log(`Resubscribing to ${friendSubscriptions.size} friend updates`);
         for (const [userId, { callback }] of friendSubscriptions) {
             try {
                 await this.subscribeToFriendUpdates(userId, callback);
-                console.log(`Successfully resubscribed to friend updates for user: ${userId}`);
             } catch (error) {
-                console.error(`Failed to resubscribe to friend updates for user ${userId}:`, error);
-                // Restore the original subscription in the map
+                console.error(`Lỗi khi đăng ký lại cập nhật bạn bè cho người dùng ${userId}:`, error);
+                // Khôi phục đăng ký gốc trong map
                 this.friendSubscriptions.set(userId, tempFriendSubscriptions.get(userId));
             }
         }
 
-        // Resubscribe to message updates
+        // Đăng ký lại cho cập nhật tin nhắn
         const messageSubscriptions = new Map(this.messageSubscriptions);
         const tempMessageSubscriptions = new Map(this.messageSubscriptions);
         this.messageSubscriptions.clear();
 
-        console.log(`Resubscribing to ${messageSubscriptions.size} message updates`);
         for (const [userId, { callback }] of messageSubscriptions) {
             try {
                 await this.subscribeToMessages(userId, callback);
-                console.log(`Successfully resubscribed to messages for user: ${userId}`);
             } catch (error) {
-                console.error(`Failed to resubscribe to messages for user ${userId}:`, error);
-                // Restore the original subscription in the map
+                console.error(`Lỗi khi đăng ký lại tin nhắn cho người dùng ${userId}:`, error);
+                // Khôi phục đăng ký gốc trong map
                 this.messageSubscriptions.set(userId, tempMessageSubscriptions.get(userId));
             }
         }
 
-        // Resubscribe to notification updates
+        // Đăng ký lại cho cập nhật thông báo
         const notificationSubscriptions = new Map(this.notificationSubscriptions);
         const tempNotificationSubscriptions = new Map(this.notificationSubscriptions);
         this.notificationSubscriptions.clear();
 
-        console.log(`Resubscribing to ${notificationSubscriptions.size} notification updates`);
         for (const [userId, { callback }] of notificationSubscriptions) {
             try {
                 await this.subscribeToNotifications(userId, callback);
-                console.log(`Successfully resubscribed to notifications for user: ${userId}`);
             } catch (error) {
-                console.error(`Failed to resubscribe to notifications for user ${userId}:`, error);
-                // Restore the original subscription in the map
+                console.error(`Lỗi khi đăng ký lại thông báo cho người dùng ${userId}:`, error);
+                // Khôi phục đăng ký gốc trong map
                 this.notificationSubscriptions.set(userId, tempNotificationSubscriptions.get(userId));
             }
         }
-
-        console.log('Resubscription complete');
     }
 
+    /**
+     * Đăng ký nhận cập nhật cho một bài viết
+     * @param {string} postId ID của bài viết
+     * @param {Function} callback Hàm callback xử lý khi nhận được cập nhật
+     */
     async subscribeToPost(postId, callback) {
         if (!postId || !callback) return;
 
@@ -294,246 +296,247 @@ class WebSocketService {
                 await this.connect();
             }
 
-            console.log(`Subscribing to post: ${postId}`);
             const subscription = this.stompClient.subscribe(`/topic/posts/${postId}`, message => {
                 try {
                     const post = JSON.parse(message.body);
-                    console.log(`Received update for post ${postId}:`, post);
                     callback(post);
                 } catch (error) {
-                    console.error('Error parsing message:', error);
+                    console.error('Lỗi khi phân tích tin nhắn:', error);
                 }
             });
             this.subscriptions.set(postId, { callback, subscription });
         } catch (error) {
-            console.error(`Failed to subscribe to post ${postId}:`, error);
-            // Try to reconnect on subscription failure
+            console.error(`Lỗi khi đăng ký bài viết ${postId}:`, error);
+            // Thử kết nối lại khi đăng ký thất bại
             this.reconnectWithDelay();
         }
     }
 
+    /**
+     * Hủy đăng ký cập nhật cho một bài viết
+     * @param {string} postId ID của bài viết
+     */
     unsubscribeFromPost(postId) {
         const sub = this.subscriptions.get(postId);
         if (sub && sub.subscription) {
             try {
-                console.log(`Unsubscribing from post: ${postId}`);
                 sub.subscription.unsubscribe();
             } catch (e) {
-                console.error(`Error unsubscribing from post ${postId}:`, e);
+                console.error(`Lỗi khi hủy đăng ký bài viết ${postId}:`, e);
             }
             this.subscriptions.delete(postId);
         }
     }
 
+    /**
+     * Đăng ký nhận cập nhật về bạn bè cho một người dùng
+     * @param {string} userId ID của người dùng
+     * @param {Function} callback Hàm callback xử lý khi nhận được cập nhật
+     */
     async subscribeToFriendUpdates(userId, callback) {
         if (!userId || !callback) {
-            console.error('Invalid userId or callback for friend updates subscription');
+            console.error('ID người dùng hoặc callback không hợp lệ cho đăng ký cập nhật bạn bè');
             return;
         }
 
         if (this.friendSubscriptions.has(userId)) {
-            console.log(`Already subscribed to friend updates for user: ${userId}`);
             return;
         }
 
         try {
             if (!this.connected) {
-                console.log(`WebSocket not connected, connecting for user: ${userId}`);
                 await this.connect();
             }
 
-            console.log(`Subscribing to friend updates for user: ${userId}`);
             const subscription = this.stompClient.subscribe(`/topic/friends/${userId}`, message => {
                 try {
                     const data = JSON.parse(message.body);
-                    console.log(`Received friend update for user ${userId}:`, data);
-                    console.log('Friend update type:', data.type);
-                    console.log('Friend update data:', data);
-
-                    // Debug: Log the callback function
-                    console.log('Callback function exists:', !!callback);
-
-                    // Call the callback with the data
                     callback(data);
-
-                    // Debug: Log after callback
-                    console.log('Callback executed for friend update');
                 } catch (error) {
-                    console.error('Error parsing friend update message:', error);
+                    console.error('Lỗi khi phân tích tin nhắn cập nhật bạn bè:', error);
                 }
             });
 
-            console.log(`Successfully subscribed to friend updates for user: ${userId}`);
             this.friendSubscriptions.set(userId, { callback, subscription });
-            console.log('Current friend subscriptions:', [...this.friendSubscriptions.keys()]);
         } catch (error) {
-            console.error(`Failed to subscribe to friend updates for user ${userId}:`, error);
-            // Try to reconnect on subscription failure
+            console.error(`Lỗi khi đăng ký cập nhật bạn bè cho người dùng ${userId}:`, error);
+            // Thử kết nối lại khi đăng ký thất bại
             this.reconnectWithDelay();
         }
     }
 
+    /**
+     * Hủy đăng ký cập nhật bạn bè cho một người dùng
+     * @param {string} userId ID của người dùng
+     */
     unsubscribeFromFriendUpdates(userId) {
         const sub = this.friendSubscriptions.get(userId);
         if (sub && sub.subscription) {
             try {
-                console.log(`Unsubscribing from friend updates for user: ${userId}`);
                 sub.subscription.unsubscribe();
             } catch (e) {
-                console.error(`Error unsubscribing from friend updates for user ${userId}:`, e);
+                console.error(`Lỗi khi hủy đăng ký cập nhật bạn bè cho người dùng ${userId}:`, e);
             }
             this.friendSubscriptions.delete(userId);
         }
     }
 
+    /**
+     * Đăng ký nhận tin nhắn cho một người dùng
+     * @param {string} userId ID của người dùng
+     * @param {Function} callback Hàm callback xử lý khi nhận được tin nhắn
+     */
     async subscribeToMessages(userId, callback) {
         if (!userId || !callback) {
-            console.error('Invalid userId or callback for message subscription');
+            console.error('ID người dùng hoặc callback không hợp lệ cho đăng ký tin nhắn');
             return;
         }
 
         if (this.messageSubscriptions.has(userId)) {
-            console.log(`Already subscribed to messages for user: ${userId}`);
             return;
         }
 
         try {
             if (!this.connected) {
-                console.log(`WebSocket not connected, connecting for messages to user: ${userId}`);
                 await this.connect();
             }
 
-            console.log(`Subscribing to messages for user: ${userId}`);
             const subscription = this.stompClient.subscribe(`/topic/messages/${userId}`, message => {
                 try {
                     const data = JSON.parse(message.body);
-                    console.log(`Received message for user ${userId}:`, data);
                     callback(data);
                 } catch (error) {
-                    console.error('Error parsing message:', error);
+                    console.error('Lỗi khi phân tích tin nhắn:', error);
                 }
             });
 
-            console.log(`Successfully subscribed to messages for user: ${userId}`);
             this.messageSubscriptions.set(userId, { callback, subscription });
         } catch (error) {
-            console.error(`Failed to subscribe to messages for user ${userId}:`, error);
+            console.error(`Lỗi khi đăng ký tin nhắn cho người dùng ${userId}:`, error);
             this.reconnectWithDelay();
         }
     }
 
+    /**
+     * Hủy đăng ký tin nhắn cho một người dùng
+     * @param {string} userId ID của người dùng
+     */
     unsubscribeFromMessages(userId) {
         const sub = this.messageSubscriptions.get(userId);
         if (sub && sub.subscription) {
             try {
-                console.log(`Unsubscribing from messages for user: ${userId}`);
                 sub.subscription.unsubscribe();
             } catch (e) {
-                console.error(`Error unsubscribing from messages for user ${userId}:`, e);
+                console.error(`Lỗi khi hủy đăng ký tin nhắn cho người dùng ${userId}:`, e);
             }
             this.messageSubscriptions.delete(userId);
         }
     }
 
+    /**
+     * Đăng ký nhận thông báo cho một người dùng
+     * @param {string} userId ID của người dùng
+     * @param {Function} callback Hàm callback xử lý khi nhận được thông báo
+     */
     async subscribeToNotifications(userId, callback) {
         if (!userId || !callback) {
-            console.error('Invalid userId or callback for notification subscription');
+            console.error('ID người dùng hoặc callback không hợp lệ cho đăng ký thông báo');
             return;
         }
 
         if (this.notificationSubscriptions.has(userId)) {
-            console.log(`Already subscribed to notifications for user: ${userId}`);
             return;
         }
 
         try {
             if (!this.connected) {
-                console.log(`WebSocket not connected, connecting for notifications to user: ${userId}`);
                 await this.connect();
             }
 
-            console.log(`Subscribing to notifications for user: ${userId}`);
             const subscription = this.stompClient.subscribe(`/topic/notifications/${userId}`, message => {
                 try {
                     const data = JSON.parse(message.body);
-                    console.log(`Received notification for user ${userId}:`, data);
                     callback(data);
                 } catch (error) {
-                    console.error('Error parsing notification:', error);
+                    console.error('Lỗi khi phân tích thông báo:', error);
                 }
             });
 
-            console.log(`Successfully subscribed to notifications for user: ${userId}`);
             this.notificationSubscriptions.set(userId, { callback, subscription });
         } catch (error) {
-            console.error(`Failed to subscribe to notifications for user ${userId}:`, error);
+            console.error(`Lỗi khi đăng ký thông báo cho người dùng ${userId}:`, error);
             this.reconnectWithDelay();
         }
     }
 
+    /**
+     * Hủy đăng ký thông báo cho một người dùng
+     * @param {string} userId ID của người dùng
+     */
     unsubscribeFromNotifications(userId) {
         const sub = this.notificationSubscriptions.get(userId);
         if (sub && sub.subscription) {
             try {
-                console.log(`Unsubscribing from notifications for user: ${userId}`);
                 sub.subscription.unsubscribe();
             } catch (e) {
-                console.error(`Error unsubscribing from notifications for user ${userId}:`, e);
+                console.error(`Lỗi khi hủy đăng ký thông báo cho người dùng ${userId}:`, e);
             }
             this.notificationSubscriptions.delete(userId);
         }
     }
 
+    /**
+     * Ngắt kết nối WebSocket và hủy tất cả các đăng ký
+     */
     disconnect() {
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
         }
 
         if (this.stompClient) {
-            console.log('Disconnecting WebSocket');
-            // Unsubscribe from posts
+            // Hủy đăng ký từ bài viết
             this.subscriptions.forEach((sub) => {
                 if (sub.subscription) {
                     try {
                         sub.subscription.unsubscribe();
                     } catch (e) {
-                        console.error('Error unsubscribing from post:', e);
+                        console.error('Lỗi khi hủy đăng ký bài viết:', e);
                     }
                 }
             });
             this.subscriptions.clear();
 
-            // Unsubscribe from friend updates
+            // Hủy đăng ký từ cập nhật bạn bè
             this.friendSubscriptions.forEach((sub) => {
                 if (sub.subscription) {
                     try {
                         sub.subscription.unsubscribe();
                     } catch (e) {
-                        console.error('Error unsubscribing from friend updates:', e);
+                        console.error('Lỗi khi hủy đăng ký cập nhật bạn bè:', e);
                     }
                 }
             });
             this.friendSubscriptions.clear();
 
-            // Unsubscribe from message updates
+            // Hủy đăng ký từ cập nhật tin nhắn
             this.messageSubscriptions.forEach((sub) => {
                 if (sub.subscription) {
                     try {
                         sub.subscription.unsubscribe();
                     } catch (e) {
-                        console.error('Error unsubscribing from messages:', e);
+                        console.error('Lỗi khi hủy đăng ký tin nhắn:', e);
                     }
                 }
             });
             this.messageSubscriptions.clear();
 
-            // Unsubscribe from notification updates
+            // Hủy đăng ký từ cập nhật thông báo
             this.notificationSubscriptions.forEach((sub) => {
                 if (sub.subscription) {
                     try {
                         sub.subscription.unsubscribe();
                     } catch (e) {
-                        console.error('Error unsubscribing from notifications:', e);
+                        console.error('Lỗi khi hủy đăng ký thông báo:', e);
                     }
                 }
             });
@@ -544,8 +547,5 @@ class WebSocketService {
     }
 }
 
+// Xuất một instance duy nhất của WebSocketService
 export const webSocketService = new WebSocketService();
-
-
-
-

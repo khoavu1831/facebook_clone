@@ -4,10 +4,16 @@ import { useUser } from "../contexts/UserContext";
 import { API_ENDPOINTS } from "../config/api";
 import './LeftSidebar.css';
 
+/**
+ * Component hiển thị thanh bên trái với các liên kết và thông tin người dùng
+ */
 function LeftSidebar() {
   const { currentUser } = useUser();
   const [userProfile, setUserProfile] = useState(null);
 
+  /**
+   * Lấy thông tin hồ sơ người dùng khi component được mount hoặc currentUser thay đổi
+   */
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
@@ -19,13 +25,18 @@ function LeftSidebar() {
           }
         }
       } catch (error) {
-        console.error('Error fetching user profile:', error);
+        console.error('Lỗi khi lấy thông tin hồ sơ người dùng:', error);
       }
     };
 
     fetchUserProfile();
   }, [currentUser]);
 
+  /**
+   * Lấy URL đầy đủ của hình ảnh
+   * @param {string} path - Đường dẫn hình ảnh
+   * @returns {string} URL đầy đủ của hình ảnh
+   */
   const getFullImageUrl = (path) => {
     if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http')) return path;
@@ -37,56 +48,62 @@ function LeftSidebar() {
       className="col-3 p-3 position-fixed"
       style={{ top: "60px", height: "calc(100vh - 60px)", overflowY: "auto" }}
     >
+      {/* Thông tin người dùng */}
       <div className="d-flex align-items-center gap-2 mb-3">
-        <Link to="/profile" style={{ textDecoration: "none", color: "black" }}>
+        <Link to="/profile" style={{ textDecoration: "none", color: "black" }} aria-label="Xem hồ sơ cá nhân">
           <div className="d-flex align-items-center flex-row">
             <img
               src={getFullImageUrl(userProfile?.avatar)}
-              alt="User"
+              alt="Ảnh đại diện"
               className="rounded-circle"
               style={{ width: "40px", height: "40px", objectFit: "cover" }}
             />
             <span style={{ marginLeft: '6px', fontSize: '18px' }}>
-              {userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : 'Loading...'}
+              {userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : 'Đang tải...'}
             </span>
           </div>
         </Link>
       </div>
+
+      {/* Danh sách liên kết */}
       <ul className="list-unstyled">
         <li className="mb-2">
           <Link
             to="/friends"
             className="text-dark text-decoration-none d-flex align-items-center gap-2 sidebar-item"
+            aria-label="Xem danh sách bạn bè"
           >
             <img
               src="/img/icons/friend.png"
-              alt="Friends"
+              alt="Biểu tượng bạn bè"
               className="action-icon"
             />
-            <span>Friends</span>
+            <span>Bạn bè</span>
           </Link>
         </li>
         <li className="mb-2">
           <Link
             to="/groups"
             className="text-dark text-decoration-none d-flex align-items-center gap-2 sidebar-item"
+            aria-label="Xem nhóm"
           >
             <img
               src="/img/icons/groups.png"
-              alt="Groups"
+              alt="Biểu tượng nhóm"
               className="action-icon"
             />
-            <span>Groups</span>
+            <span>Nhóm</span>
           </Link>
         </li>
         <li className="mb-2">
           <Link
             to="/marketplace"
             className="text-dark text-decoration-none d-flex align-items-center gap-2 sidebar-item"
+            aria-label="Xem marketplace"
           >
             <img
-              src="/img/icons/market.png" 
-              alt="Marketplace"
+              src="/img/icons/market.png"
+              alt="Biểu tượng marketplace"
               className="action-icon"
             />
             <span>Marketplace</span>
@@ -96,10 +113,11 @@ function LeftSidebar() {
           <Link
             to="/watch"
             className="text-dark text-decoration-none d-flex align-items-center gap-2 sidebar-item"
+            aria-label="Xem video"
           >
             <img
-              src="/img/icons/reel.png" 
-              alt="Watch"
+              src="/img/icons/reel.png"
+              alt="Biểu tượng video"
               className="action-icon"
             />
             <span>Watch</span>
@@ -109,26 +127,28 @@ function LeftSidebar() {
           <Link
             to="/memories"
             className="text-dark text-decoration-none d-flex align-items-center gap-2 sidebar-item"
+            aria-label="Xem kỷ niệm"
           >
             <img
-              src="/img/icons/memories.png" 
-              alt="Memories"
+              src="/img/icons/memories.png"
+              alt="Biểu tượng kỷ niệm"
               className="action-icon"
             />
-            <span>Memories</span>
+            <span>Kỷ niệm</span>
           </Link>
         </li>
         <li className="mb-2">
           <Link
             to="/more"
             className="text-dark text-decoration-none d-flex align-items-center gap-2 sidebar-item"
+            aria-label="Xem thêm"
           >
             <img
-              src="/img/icons/plus-sign.png" 
-              alt="More"
+              src="/img/icons/plus-sign.png"
+              alt="Biểu tượng xem thêm"
               className="action-icon"
             />
-            <span>See more</span>
+            <span>Xem thêm</span>
           </Link>
         </li>
       </ul>
