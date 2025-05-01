@@ -1,17 +1,31 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './Toast.css';
 
-// Toast component
+/**
+ * Component hiển thị một thông báo toast
+ * @param {Object} props - Props của component
+ * @param {string} props.id - ID của thông báo
+ * @param {string} props.type - Loại thông báo (success, error, warning, info)
+ * @param {string} props.title - Tiêu đề thông báo
+ * @param {string} props.message - Nội dung thông báo
+ * @param {Function} props.onClose - Hàm xử lý khi đóng thông báo
+ * @param {boolean} props.autoClose - Tự động đóng thông báo sau một khoảng thời gian (mặc định: true)
+ * @param {number} props.duration - Thời gian hiển thị thông báo (ms) (mặc định: 5000)
+ */
 const ToastItem = ({ id, type, title, message, onClose, autoClose = true, duration = 5000 }) => {
   const [removing, setRemoving] = useState(false);
 
+  /**
+   * Đóng thông báo với hiệu ứng
+   */
   const closeToast = useCallback(() => {
     setRemoving(true);
     setTimeout(() => {
       onClose(id);
-    }, 300); // Match animation duration
+    }, 300); // Thời gian khớp với thời lượng animation
   }, [id, onClose]);
 
+  // Tự động đóng thông báo sau một khoảng thời gian
   useEffect(() => {
     if (autoClose) {
       const timer = setTimeout(() => {
@@ -22,6 +36,10 @@ const ToastItem = ({ id, type, title, message, onClose, autoClose = true, durati
     }
   }, [autoClose, duration, closeToast]);
 
+  /**
+   * Lấy biểu tượng tương ứng với loại thông báo
+   * @returns {string} Biểu tượng
+   */
   const getIcon = () => {
     switch (type) {
       case 'success':
@@ -43,12 +61,17 @@ const ToastItem = ({ id, type, title, message, onClose, autoClose = true, durati
         {title && <div className="toast-title">{title}</div>}
         {message && <div className="toast-message">{message}</div>}
       </div>
-      <button className="toast-close" onClick={closeToast}>×</button>
+      <button className="toast-close" onClick={closeToast} aria-label="Đóng thông báo">×</button>
     </div>
   );
 };
 
-// Toast container
+/**
+ * Component hiển thị container chứa các thông báo toast
+ * @param {Object} props - Props của component
+ * @param {Array} props.toasts - Danh sách các thông báo
+ * @param {Function} props.removeToast - Hàm xử lý khi đóng thông báo
+ */
 const Toast = ({ toasts, removeToast }) => {
   if (!toasts || toasts.length === 0) return null;
 

@@ -9,7 +9,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -32,8 +31,10 @@ import com.example.facebook_clone.repository.PostRepository;
 import com.example.facebook_clone.repository.UserRepository;
 import com.example.facebook_clone.service.FileStorageService;
 import com.example.facebook_clone.service.NotificationService;
-import com.example.facebook_clone.service.UserService;
 
+/**
+ * Controller xử lý các API liên quan đến bài đăng
+ */
 @RestController
 @RequestMapping("/api/posts")
 public class PostController {
@@ -50,16 +51,23 @@ public class PostController {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
-    // Thêm UserService
-    @Autowired
-    private UserService userService;
+    // UserService không được sử dụng trực tiếp trong controller này
 
     @Autowired
     private NotificationService notificationService;
 
-    @Value("${app.base-url:http://localhost:8080}")
-    private String baseUrl;
+    // Không sử dụng baseUrl
 
+    /**
+     * Tạo bài đăng mới
+     *
+     * @param content Nội dung bài đăng
+     * @param images Mảng hình ảnh đính kèm
+     * @param videos Mảng video đính kèm
+     * @param userId ID người dùng tạo bài đăng
+     * @param privacy Quyền riêng tư của bài đăng (PUBLIC/PRIVATE)
+     * @return Bài đăng đã được lưu
+     */
     @PostMapping
     public ResponseEntity<?> createPost(
             @RequestParam("content") String content,
@@ -73,7 +81,7 @@ public class PostController {
         post.setUserId(userId);
         post.setPrivacy(privacy);
 
-        // Xử lý images
+        // Xử lý hình ảnh
         if (images != null && images.length > 0) {
             List<String> imageUrls = new ArrayList<>();
             for (MultipartFile image : images) {
@@ -83,7 +91,7 @@ public class PostController {
             post.setImages(imageUrls);
         }
 
-        // Xử lý videos
+        // Xử lý video
         if (videos != null && videos.length > 0) {
             List<String> videoUrls = new ArrayList<>();
             for (MultipartFile video : videos) {
@@ -95,13 +103,19 @@ public class PostController {
 
         Post savedPost = postRepository.save(post);
 
-        // Populate user information
+        // Thêm thông tin người dùng vào bài đăng
         Optional<User> userOptional = userRepository.findById(userId);
         userOptional.ifPresent(savedPost::setUser);
 
         return ResponseEntity.ok(savedPost);
     }
 
+    /**
+     * Lấy tất cả bài đăng
+     *
+     * @param userId ID người dùng đang xem (để kiểm tra quyền riêng tư)
+     * @return Danh sách bài đăng
+     */
     @GetMapping
     public ResponseEntity<List<Post>> getAllPosts(@RequestParam(value = "userId", required = false) String userId) {
         List<Post> posts;
@@ -122,10 +136,11 @@ public class PostController {
         }
 
         posts.forEach(post -> {
-            // Populate user information
+            // Thêm thông tin người dùng vào bài đăng
             Optional<User> userOptional = userRepository.findById(post.getUserId());
             userOptional.ifPresent(post::setUser);
 
+            // Xử lý bài đăng được chia sẻ
             if (post.getOriginalPostId() != null) {
                 Post originalPost = postRepository.findById(post.getOriginalPostId()).orElse(null);
                 if (originalPost != null) {
@@ -139,16 +154,22 @@ public class PostController {
         return ResponseEntity.ok(posts);
     }
 
-    // Add new endpoint for profile posts
+    /**
+     * Lấy bài đăng của một người dùng cụ thể
+     *
+     * @param userId ID người dùng sở hữu bài đăng
+     * @param viewerId ID người dùng đang xem (để kiểm tra quyền riêng tư)
+     * @return Danh sách bài đăng
+     */
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Post>> getUserPosts(@PathVariable String userId, @RequestParam(required = false) String viewerId) {
         List<Post> posts;
 
         if (userId.equals(viewerId)) {
-            // If viewing own profile, show all posts
+            // Nếu xem trang cá nhân của chính mình, hiển thị tất cả bài đăng
             posts = postRepository.findByUserId(userId);
         } else {
-            // If viewing other's profile, show only public posts
+            // Nếu xem trang cá nhân của người khác, chỉ hiển thị bài đăng công khai
             posts = postRepository.findByUserId(userId).stream()
                 .filter(post -> "PUBLIC".equals(post.getPrivacy()))
                 .collect(Collectors.toList());
@@ -158,7 +179,13 @@ public class PostController {
         return ResponseEntity.ok(posts);
     }
 
-    // Search posts by content
+    /**
+     * Tìm kiếm bài đăng theo nội dung
+     *
+     * @param query Từ khóa tìm kiếm
+     * @param userId ID người dùng đang tìm kiếm (để kiểm tra quyền riêng tư)
+     * @return Danh sách bài đăng phù hợp
+     */
     @GetMapping("/search")
     public ResponseEntity<List<Post>> searchPosts(@RequestParam String query, @RequestParam(required = false) String userId) {
         List<Post> allPosts;
@@ -184,13 +211,19 @@ public class PostController {
                 post.getContent().toLowerCase().contains(query.toLowerCase()))
             .collect(Collectors.toList());
 
-        // Populate user data cho các bài viết
+        // Thêm thông tin người dùng vào các bài đăng
         filteredPosts.forEach(this::populatePostData);
 
         return ResponseEntity.ok(filteredPosts);
     }
 
-    // Add endpoint to get a single post by ID
+    /**
+     * Lấy thông tin chi tiết của một bài đăng
+     *
+     * @param postId ID bài đăng cần lấy
+     * @param viewerId ID người dùng đang xem (để kiểm tra quyền riêng tư)
+     * @return Thông tin chi tiết bài đăng
+     */
     @GetMapping("/{postId}")
     public ResponseEntity<?> getPostById(@PathVariable String postId, @RequestParam(required = false) String viewerId) {
         try {
@@ -201,26 +234,31 @@ public class PostController {
 
             Post post = postOptional.get();
 
-            // Check privacy settings - only check for PRIVATE posts
-            // If post is PRIVATE, only the owner can view it
+            // Kiểm tra quyền riêng tư - chỉ kiểm tra cho bài đăng PRIVATE
+            // Nếu bài đăng là PRIVATE, chỉ chủ sở hữu mới có thể xem
             if ("PRIVATE".equals(post.getPrivacy()) && (viewerId == null || !post.getUserId().equals(viewerId))) {
-                return ResponseEntity.status(403).body("You don't have permission to view this post");
+                return ResponseEntity.status(403).body("Bạn không có quyền xem bài đăng này");
             }
 
             populatePostData(post);
             return ResponseEntity.ok(post);
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.badRequest().body(e.getMessage());
+            // Xử lý lỗi
+            return ResponseEntity.badRequest().body("Lỗi khi lấy thông tin bài đăng: " + e.getMessage());
         }
     }
 
+    /**
+     * Thêm thông tin người dùng vào bài đăng và bình luận
+     *
+     * @param post Bài đăng cần thêm thông tin
+     */
     private void populatePostData(Post post) {
-        // Add user info to the post
+        // Thêm thông tin người dùng vào bài đăng
         Optional<User> postUserOptional = userRepository.findById(post.getUserId());
         postUserOptional.ifPresent(post::setUser);
 
-        // Add user info to comments
+        // Thêm thông tin người dùng vào bình luận
         if (post.getComments() != null) {
             post.getComments().forEach(comment -> {
                 Optional<User> commentUserOptional = userRepository.findById(comment.getUserId());
@@ -228,18 +266,25 @@ public class PostController {
             });
         }
 
-        // If it's a shared post, populate original post info
+        // Nếu là bài đăng được chia sẻ, thêm thông tin bài đăng gốc
         if (post.isShared() && post.getOriginalPostId() != null) {
             Optional<Post> originalPostOptional = postRepository.findById(post.getOriginalPostId());
             if (originalPostOptional.isPresent()) {
                 Post originalPost = originalPostOptional.get();
-                // Recursively populate the original post data
+                // Đệ quy thêm thông tin cho bài đăng gốc
                 populatePostData(originalPost);
                 post.setOriginalPost(originalPost);
             }
         }
     }
 
+    /**
+     * Xóa bài đăng
+     *
+     * @param id ID bài đăng cần xóa
+     * @param userId ID người dùng thực hiện xóa
+     * @return Kết quả xóa
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deletePost(@PathVariable String id, @RequestParam String userId) {
         try {
@@ -253,24 +298,31 @@ public class PostController {
 
             // Kiểm tra xem người dùng có phải là chủ sở hữu không
             if (!post.getUserId().equals(userId)) {
-                return ResponseEntity.status(403).body("You don't have permission to delete this post");
+                return ResponseEntity.status(403).body("Bạn không có quyền xóa bài đăng này");
             }
 
             postRepository.deleteById(id);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.badRequest().body(e.getMessage());
+            // Xử lý lỗi
+            return ResponseEntity.badRequest().body("Lỗi khi xóa bài đăng: " + e.getMessage());
         }
     }
 
+    /**
+     * Thích hoặc bỏ thích bài đăng
+     *
+     * @param postId ID bài đăng
+     * @param request Thông tin yêu cầu (userId)
+     * @return Bài đăng đã cập nhật
+     */
     @PostMapping("/{postId}/like")
     public ResponseEntity<?> likePost(@PathVariable String postId, @RequestBody Map<String, String> request) {
         try {
             Post post = postRepository.findById(postId)
-                    .orElseThrow(() -> new RuntimeException("Post not found"));
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng"));
 
-            // Update likes
+            // Cập nhật danh sách thích
             String userId = request.get("userId");
             List<String> likes = new ArrayList<>(post.getLikes());
             if (likes.contains(userId)) {
@@ -280,12 +332,11 @@ public class PostController {
             }
             post.setLikes(likes);
 
-            // Save and populate
+            // Lưu và thêm thông tin người dùng
             Post savedPost = postRepository.save(post);
             populatePostData(savedPost);
 
-            // Send WebSocket update
-            System.out.println("Sending WebSocket update for post: " + postId);
+            // Gửi cập nhật qua WebSocket
             messagingTemplate.convertAndSend("/topic/posts/" + postId, savedPost);
 
             // Tạo thông báo khi có người thích bài viết
@@ -296,28 +347,38 @@ public class PostController {
             }
 
             return ResponseEntity.ok(savedPost);
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (RuntimeException e) {
+            // Xử lý lỗi không tìm thấy bài đăng
             return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            // Xử lý các lỗi khác
+            return ResponseEntity.badRequest().body("Lỗi khi thích bài đăng: " + e.getMessage());
         }
     }
+    /**
+     * Thêm bình luận vào bài đăng
+     *
+     * @param postId ID bài đăng
+     * @param request Thông tin bình luận
+     * @return Bài đăng đã cập nhật
+     */
     @PostMapping("/{postId}/comments")
     public ResponseEntity<?> addComment(@PathVariable String postId, @RequestBody CommentRequest request) {
         try {
             Post post = postRepository.findById(postId)
-                    .orElseThrow(() -> new RuntimeException("Post not found"));
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng"));
 
             // Kiểm tra độ sâu của comment
             if (request.getParentId() != null && !request.getParentId().isEmpty()) {
                 Comment parentComment = findCommentById(post.getComments(), request.getParentId());
                 if (parentComment == null) {
-                    return ResponseEntity.badRequest().body("Parent comment not found");
+                    return ResponseEntity.badRequest().body("Không tìm thấy bình luận cha");
                 }
 
                 // Tính độ sâu của comment
                 int depth = calculateCommentDepth(post.getComments(), request.getParentId());
                 if (depth >= 3) { // 3 là max depth cho phép (tổng 3 tầng: 0,1,2,3)
-                    return ResponseEntity.badRequest().body("Maximum reply depth reached");
+                    return ResponseEntity.badRequest().body("Đã đạt độ sâu tối đa cho phép");
                 }
             }
 
@@ -342,14 +403,14 @@ public class PostController {
                 post.getComments().add(comment);
             }
 
-            // Populate user data
+            // Thêm thông tin người dùng vào bình luận
             Optional<User> userOptional = userRepository.findById(request.getUserId());
             userOptional.ifPresent(comment::setUser);
 
             Post savedPost = postRepository.save(post);
             populatePostData(savedPost);
 
-            // Send WebSocket update to all users
+            // Gửi cập nhật qua WebSocket
             messagingTemplate.convertAndSend("/topic/posts/" + postId, savedPost);
 
             // Tạo thông báo nếu đây là bình luận mới (không phải reply)
@@ -377,12 +438,22 @@ public class PostController {
             }
 
             return ResponseEntity.ok(savedPost);
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (RuntimeException e) {
+            // Xử lý lỗi không tìm thấy bài đăng
             return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            // Xử lý các lỗi khác
+            return ResponseEntity.badRequest().body("Lỗi khi thêm bình luận: " + e.getMessage());
         }
     }
 
+    /**
+     * Tìm bình luận theo ID trong danh sách bình luận
+     *
+     * @param comments Danh sách bình luận cần tìm
+     * @param commentId ID bình luận cần tìm
+     * @return Bình luận tìm thấy hoặc null nếu không tìm thấy
+     */
     private Comment findCommentById(List<Comment> comments, String commentId) {
         if (comments == null) return null;
 
@@ -390,7 +461,7 @@ public class PostController {
             if (comment.getId().equals(commentId)) {
                 return comment;
             }
-            // Check in replies
+            // Kiểm tra trong danh sách trả lời
             if (comment.getReplies() != null) {
                 Comment found = findCommentById(comment.getReplies(), commentId);
                 if (found != null) {
@@ -401,7 +472,13 @@ public class PostController {
         return null;
     }
 
-    // Thêm method mới để tính độ sâu của comment
+    /**
+     * Tính độ sâu của bình luận
+     *
+     * @param comments Danh sách bình luận
+     * @param commentId ID bình luận cần tính độ sâu
+     * @return Độ sâu của bình luận
+     */
     private int calculateCommentDepth(List<Comment> comments, String commentId) {
         int depth = 0;
         Comment comment = findCommentById(comments, commentId);
@@ -414,12 +491,20 @@ public class PostController {
         return depth;
     }
 
+    /**
+     * Chia sẻ bài đăng
+     *
+     * @param request Thông tin yêu cầu chia sẻ
+     * @return Bài đăng đã chia sẻ
+     */
     @PostMapping("/share")
     public ResponseEntity<?> sharePost(@RequestBody SharePostRequest request) {
         try {
-            Post originalPost = postRepository.findById(request.getOriginalPostId())
-                    .orElseThrow(() -> new RuntimeException("Original post not found"));
+            // Kiểm tra bài đăng gốc tồn tại
+            postRepository.findById(request.getOriginalPostId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đăng gốc"));
 
+            // Tạo bài đăng chia sẻ mới
             Post sharedPost = new Post();
             sharedPost.setContent(request.getContent());
             sharedPost.setUserId(request.getUserId());
@@ -428,15 +513,26 @@ public class PostController {
             sharedPost.setOriginalPostId(request.getOriginalPostId());
 
             Post savedPost = postRepository.save(sharedPost);
-            // Populate full post data before returning
+            // Thêm thông tin người dùng và bài đăng gốc
             populatePostData(savedPost);
 
             return ResponseEntity.ok(savedPost);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            // Xử lý lỗi không tìm thấy bài đăng gốc
             return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            // Xử lý các lỗi khác
+            return ResponseEntity.badRequest().body("Lỗi khi chia sẻ bài đăng: " + e.getMessage());
         }
     }
 
+    /**
+     * Cập nhật bài đăng
+     *
+     * @param id ID bài đăng cần cập nhật
+     * @param request Thông tin cập nhật
+     * @return Bài đăng đã cập nhật
+     */
     @PutMapping("/{id}")
     public ResponseEntity<?> updatePost(@PathVariable String id, @RequestBody Map<String, String> request) {
         try {
@@ -445,10 +541,10 @@ public class PostController {
             String privacy = request.get("privacy");
 
             if (userId == null) {
-                return ResponseEntity.badRequest().body("UserId is required");
+                return ResponseEntity.badRequest().body("Cần cung cấp userId");
             }
 
-            // Content can be empty or null
+            // Nội dung có thể trống hoặc null
 
             // Kiểm tra xem bài viết có tồn tại không
             Optional<Post> postOptional = postRepository.findById(id);
@@ -460,7 +556,7 @@ public class PostController {
 
             // Kiểm tra xem người dùng có phải là chủ sở hữu không
             if (!post.getUserId().equals(userId)) {
-                return ResponseEntity.status(403).body("You don't have permission to update this post");
+                return ResponseEntity.status(403).body("Bạn không có quyền cập nhật bài đăng này");
             }
 
             // Cập nhật nội dung bài viết
@@ -471,20 +567,33 @@ public class PostController {
                 post.setPrivacy(privacy);
             }
 
-            // Lưu và populate dữ liệu
+            // Lưu và thêm thông tin người dùng
             Post savedPost = postRepository.save(post);
             populatePostData(savedPost);
 
-            // Gửi WebSocket update
+            // Gửi cập nhật qua WebSocket
             messagingTemplate.convertAndSend("/topic/posts/" + id, savedPost);
 
             return ResponseEntity.ok(savedPost);
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.badRequest().body(e.getMessage());
+            // Xử lý lỗi
+            return ResponseEntity.badRequest().body("Lỗi khi cập nhật bài đăng: " + e.getMessage());
         }
     }
 
+    /**
+     * Cập nhật bài đăng kèm media
+     *
+     * @param id ID bài đăng cần cập nhật
+     * @param content Nội dung mới
+     * @param userId ID người dùng thực hiện cập nhật
+     * @param privacy Quyền riêng tư mới
+     * @param images Mảng hình ảnh mới
+     * @param videos Mảng video mới
+     * @param keepImages Mảng đường dẫn hình ảnh cần giữ lại
+     * @param keepVideos Mảng đường dẫn video cần giữ lại
+     * @return Bài đăng đã cập nhật
+     */
     @PostMapping("/{id}/update-with-media")
     public ResponseEntity<?> updatePostWithMedia(
             @PathVariable String id,
@@ -497,7 +606,7 @@ public class PostController {
             @RequestParam(value = "keepVideos", required = false) String[] keepVideos) {
 
         try {
-            // Content can be empty or null if there are images or videos
+            // Nội dung có thể trống nếu có hình ảnh hoặc video
             // Kiểm tra xem bài viết có tồn tại không
             Optional<Post> postOptional = postRepository.findById(id);
             if (!postOptional.isPresent()) {
@@ -508,7 +617,7 @@ public class PostController {
 
             // Kiểm tra xem người dùng có phải là chủ sở hữu không
             if (!post.getUserId().equals(userId)) {
-                return ResponseEntity.status(403).body("You don't have permission to update this post");
+                return ResponseEntity.status(403).body("Bạn không có quyền cập nhật bài đăng này");
             }
 
             // Cập nhật nội dung bài viết
@@ -563,20 +672,28 @@ public class PostController {
             post.setImages(updatedImages);
             post.setVideos(updatedVideos);
 
-            // Lưu và populate dữ liệu
+            // Lưu và thêm thông tin người dùng
             Post savedPost = postRepository.save(post);
             populatePostData(savedPost);
 
-            // Gửi WebSocket update
+            // Gửi cập nhật qua WebSocket
             messagingTemplate.convertAndSend("/topic/posts/" + id, savedPost);
 
             return ResponseEntity.ok(savedPost);
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.badRequest().body(e.getMessage());
+            // Xử lý lỗi
+            return ResponseEntity.badRequest().body("Lỗi khi cập nhật bài đăng với media: " + e.getMessage());
         }
     }
 
+    /**
+     * Xóa bình luận
+     *
+     * @param postId ID bài đăng chứa bình luận
+     * @param commentId ID bình luận cần xóa
+     * @param userId ID người dùng thực hiện xóa
+     * @return Bài đăng đã cập nhật
+     */
     @DeleteMapping("/{postId}/comments/{commentId}")
     public ResponseEntity<?> deleteComment(@PathVariable String postId, @PathVariable String commentId, @RequestParam String userId) {
         try {
@@ -596,7 +713,7 @@ public class PostController {
 
             // Kiểm tra xem người dùng có phải là chủ sở hữu bình luận không
             if (!commentToDelete.getUserId().equals(userId)) {
-                return ResponseEntity.status(403).body("You don't have permission to delete this comment");
+                return ResponseEntity.status(403).body("Bạn không có quyền xóa bình luận này");
             }
 
             // Xóa bình luận
@@ -611,17 +728,17 @@ public class PostController {
                 }
             }
 
-            // Lưu và populate dữ liệu
+            // Lưu và thêm thông tin người dùng
             Post savedPost = postRepository.save(post);
             populatePostData(savedPost);
 
-            // Gửi WebSocket update
+            // Gửi cập nhật qua WebSocket
             messagingTemplate.convertAndSend("/topic/posts/" + postId, savedPost);
 
             return ResponseEntity.ok(savedPost);
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.badRequest().body(e.getMessage());
+            // Xử lý lỗi
+            return ResponseEntity.badRequest().body("Lỗi khi xóa bình luận: " + e.getMessage());
         }
     }
 }

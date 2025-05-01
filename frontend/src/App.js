@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-d
 import { UserProvider } from './contexts/UserContext';
 import { ToastProvider } from './context/ToastContext';
 import { ChatProvider } from './contexts/ChatContext';
-import { isUserLoggedIn } from './utils/auth';
 import Header from './components/Header';
 import ChatForm from './components/ChatForm';
 import ChatWindowsContainer from './components/Chat/ChatWindowsContainer';
@@ -16,14 +15,13 @@ import Auth from './components/Auth/Auth';
 import Admin from './pages/Admin/Admin';
 import AdminAuth from './components/AdminAuth/AdminAuth';
 
-// Protected Route Component
+// Component bảo vệ route - chỉ cho phép truy cập khi đã đăng nhập
 const ProtectedRoute = ({ children }) => {
-  // Check if user is logged in based on token presence
-  // This is more permissive to allow the app to work even if token validation fails
+  // Kiểm tra đăng nhập dựa trên sự hiện diện của token
+  // Cách này cho phép ứng dụng hoạt động ngay cả khi xác thực token thất bại
   const hasToken = !!localStorage.getItem('userToken');
 
   if (!hasToken) {
-    console.log("No token found, redirecting to login");
     return <Navigate to="/login" />;
   }
 
@@ -38,12 +36,12 @@ function App() {
           <Router>
             <div className="app">
               <Routes>
-              {/* Public routes */}
+              {/* Routes công khai - không cần đăng nhập */}
               <Route path="/login" element={<Auth isLogin={true} />} />
               <Route path="/register" element={<Auth isLogin={false} />} />
               <Route path="/admin/login" element={<AdminAuth />} />
 
-              {/* Protected routes for regular users */}
+              {/* Routes được bảo vệ - chỉ dành cho người dùng đã đăng nhập */}
               <Route
                 path="/*"
                 element={
@@ -65,7 +63,7 @@ function App() {
                 }
               />
 
-              {/* Admin routes */}
+              {/* Routes dành cho admin */}
               <Route path="/admin/*" element={<Admin />} />
               </Routes>
             </div>

@@ -6,27 +6,29 @@ import LeftSidebar from '../components/LeftSidebar';
 import RightSidebar from '../components/RightSidebar';
 import { API_ENDPOINTS } from '../config/api';
 
+/**
+ * Trang chủ hiển thị danh sách bài đăng
+ */
 const Home = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const { currentUser } = useUser();
 
+  // Lấy danh sách bài đăng khi component được mount hoặc currentUser thay đổi
   useEffect(() => {
-    // Debug log for currentUser
-    console.log("currentUser from context:", currentUser);
-
-    // Only proceed if we have a valid user
+    // Chỉ tiếp tục nếu có thông tin người dùng hợp lệ
     if (!currentUser?.id) {
-      console.log("Waiting for user data to load...");
       return;
     }
 
+    /**
+     * Lấy danh sách bài đăng từ API
+     */
     const fetchPosts = async () => {
       try {
-        // Check if user is authenticated
+        // Kiểm tra xem người dùng đã đăng nhập chưa
         if (!currentUser?.id) {
-          console.log("No user ID found, waiting for user data to load");
-          return; // Just return instead of redirecting
+          return; // Chỉ return thay vì chuyển hướng
         }
 
         const response = await fetch(`${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.POSTS}?userId=${currentUser.id}`, {
@@ -37,14 +39,13 @@ const Home = () => {
 
         if (response.ok) {
           const data = await response.json();
-          console.log("Fetched posts:", data); // Debug log for posts
+          // Đảm bảo data là một mảng và lọc ra các bài đăng hợp lệ
           setPosts(Array.isArray(data) ? data.filter(post => post && post.id) : []);
         } else {
-          console.error('Failed to fetch posts');
           setPosts([]);
         }
       } catch (error) {
-        console.error('Error fetching posts:', error);
+        console.error('Lỗi khi lấy bài đăng:', error);
         setPosts([]);
       } finally {
         setLoading(false);
@@ -52,35 +53,51 @@ const Home = () => {
     };
 
     fetchPosts();
-  }, [currentUser]); // Add currentUser as dependency
+  }, [currentUser]); // Thêm currentUser vào dependencies
 
+  // Hiển thị thông báo nếu chưa đăng nhập
   if (!currentUser) {
-    return <div>Please log in to continue</div>;
+    return <div className="alert alert-warning m-3">Vui lòng đăng nhập để tiếp tục</div>;
   }
 
+  // Hiển thị trạng thái đang tải
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Đang tải...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="container-fluid">
       <div className="row" style={{ paddingTop: '60px' }}>
+        {/* Thanh bên trái */}
         <LeftSidebar />
+
+        {/* Nội dung chính */}
         <div className="col-6 offset-3">
           {currentUser && (
             <>
+              {/* Form tạo bài đăng mới */}
               <PostForm
                 onAddPost={(newPost) => setPosts([newPost, ...posts])}
-                currentUser={currentUser} // Pass currentUser to PostForm
+                currentUser={currentUser}
               />
+
+              {/* Danh sách bài đăng */}
               <PostList
                 posts={posts}
                 currentUser={currentUser}
-                userData={currentUser} // For backward compatibility
+                userData={currentUser} // Để tương thích ngược
               />
             </>
           )}
         </div>
+
+        {/* Thanh bên phải */}
         <RightSidebar />
       </div>
     </div>

@@ -2,51 +2,48 @@ import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/api';
 import { useChat } from '../contexts/ChatContext';
 
+/**
+ * Component hiển thị danh sách bạn bè ở thanh bên phải
+ */
 function RightSidebar() {
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(false);
   const { openChat, unreadCounts } = useChat();
 
-  // Get user data directly from localStorage
+  // Lấy thông tin người dùng trực tiếp từ localStorage
   const getUserData = () => {
     try {
       const userData = localStorage.getItem('userData');
       return userData ? JSON.parse(userData) : null;
     } catch (error) {
-      console.error('Error parsing user data:', error);
+      console.error('Lỗi khi phân tích dữ liệu người dùng:', error);
       return null;
     }
   };
 
   const user = getUserData();
 
-  // Reference to track if component is mounted
+  // Tham chiếu để theo dõi xem component có được mount hay không
   const isMounted = useRef(true);
 
+  /**
+   * Lấy danh sách bạn bè từ API
+   */
   const fetchFriends = async () => {
     try {
       if (!user?.id) {
-        console.warn('User ID not found');
         return;
       }
 
       // Lấy token xác thực từ localStorage
       const token = localStorage.getItem('userToken');
       if (!token) {
-        console.warn('Authentication token not found');
         return;
       }
 
       setLoading(true);
-      console.log('%c===== FETCHING FRIENDS =====', 'background: #3b5998; color: white; padding: 2px 5px;');
-      console.log('Fetching friends for user ID:', user.id);
-      console.log('Using token:', token.substring(0, 10) + '...');
-
-      // Kiểm tra dữ liệu người dùng trong localStorage
-      console.log('User data from localStorage:', user);
 
       const apiUrl = `/api/friends/list/${user.id}`;
-      console.log('API URL:', apiUrl);
 
       const response = await fetch(apiUrl, {
         method: 'GET',
@@ -57,21 +54,15 @@ function RightSidebar() {
         credentials: 'include'
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', [...response.headers.entries()]);
-
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
       // Đọc response dưới dạng text trước
       const responseText = await response.text();
-      console.log('%c===== API RESPONSE =====', 'background: #4CAF50; color: white; padding: 2px 5px;');
-      console.log('Raw response text:', responseText);
 
       // Kiểm tra xem response có trống không
       if (!responseText || responseText.trim() === '') {
-        console.warn('Empty response from API');
         setFriends([]);
         return;
       }
@@ -80,62 +71,44 @@ function RightSidebar() {
       let data;
       try {
         data = JSON.parse(responseText);
-        console.log('Friends data parsed:', data);
       } catch (parseError) {
-        console.error('Error parsing JSON:', parseError);
+        console.error('Lỗi khi phân tích JSON:', parseError);
         setFriends([]);
         return;
       }
 
       // Kiểm tra dữ liệu trả về
       if (Array.isArray(data)) {
-        console.log('%c===== FRIENDS DATA =====', 'background: #FF9800; color: white; padding: 2px 5px;');
-        console.log('Data is an array with', data.length, 'items');
-
-        if (data.length === 0) {
-          console.warn('Friends array is empty');
-          setFriends([]);
-        } else {
-          console.log('First friend:', data[0]);
-          console.log('All friends:', data);
-          setFriends(data);
-          console.log('Friends loaded successfully!');
-        }
+        setFriends(data);
       } else if (data && typeof data === 'object') {
-        console.warn('Data is an object, not an array:', data);
         // Nếu là object có thuộc tính error, có thể là lỗi
         if (data.error) {
-          console.error('API returned error:', data.error);
+          console.error('API trả về lỗi:', data.error);
+          setFriends([]);
         } else {
           // Nếu là object khác, thử chuyển thành mảng
-          console.log('Trying to convert object to array...');
           const dataArray = Object.values(data).filter(item => item && typeof item === 'object');
-          console.log('Converted object to array:', dataArray);
 
           if (dataArray.length > 0) {
-            console.log('First item after conversion:', dataArray[0]);
             setFriends(dataArray);
-            console.log('Friends loaded from converted object!');
           } else {
-            console.warn('No valid items after conversion');
             setFriends([]);
           }
         }
       } else {
-        console.warn('Data is neither array nor object:', data);
         setFriends([]);
       }
     } catch (error) {
-      console.error('Error fetching friends:', error);
+      console.error('Lỗi khi lấy danh sách bạn bè:', error);
       setFriends([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // Lấy danh sách bạn bè khi component được mount
   useEffect(() => {
     if (user?.id) {
-      // Fetch friends when component mounts
       fetchFriends();
     }
 
@@ -144,6 +117,11 @@ function RightSidebar() {
     };
   }, [user?.id]);
 
+  /**
+   * Lấy URL đầy đủ của hình ảnh
+   * @param {string} path Đường dẫn hình ảnh
+   * @returns {string} URL đầy đủ của hình ảnh
+   */
   const getFullImageUrl = (path) => {
     if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http')) return path;
@@ -153,20 +131,22 @@ function RightSidebar() {
   return (
     <div className="col-3 position-fixed bg-white"
          style={{ top: '60px', right: '0', height: 'calc(100vh - 60px)', overflowY: 'auto', borderLeft: '1px solid #e4e6eb' }}>
-      {/* Header */}
+      {/* Phần tiêu đề */}
       <div className="px-3 py-2 border-bottom">
         <div className="d-flex justify-content-between align-items-center">
           <h6 className="text-muted fw-bold mb-0">Người liên hệ</h6>
           <div className="d-flex gap-3">
-            <i className="bi bi-camera-video text-muted"></i>
-            <i className="bi bi-search text-muted"></i>
-            <i className="bi bi-three-dots text-muted"></i>
+            <i className="bi bi-camera-video text-muted" aria-label="Tạo cuộc gọi video"></i>
+            <i className="bi bi-search text-muted" aria-label="Tìm kiếm bạn bè"></i>
+            <i className="bi bi-three-dots text-muted" aria-label="Tùy chọn"></i>
           </div>
         </div>
-        {loading && <div className="spinner-border spinner-border-sm text-primary mt-2" role="status"></div>}
+        {loading && <div className="spinner-border spinner-border-sm text-primary mt-2" role="status">
+          <span className="visually-hidden">Đang tải...</span>
+        </div>}
       </div>
 
-      {/* Friends List */}
+      {/* Danh sách bạn bè */}
       <div className="friends-list">
         {loading ? (
           <div className="text-center p-4">
@@ -182,25 +162,33 @@ function RightSidebar() {
                 key={friend.id || Math.random()}
                 className="px-2 py-2 mx-1 my-1 d-flex align-items-center justify-content-between rounded-3 contact-item"
                 onClick={() => openChat(friend)}
+                aria-label={`Bắt đầu trò chuyện với ${friend.firstName || ''} ${friend.lastName || ''}`}
+                role="button"
+                tabIndex="0"
               >
                 <div className="d-flex align-items-center gap-2">
                   <div className="position-relative">
                     <img
                       src={getFullImageUrl(friend.avatar)}
-                      alt={`${friend.firstName || ''} ${friend.lastName || ''}`}
+                      alt={`Ảnh đại diện của ${friend.firstName || ''} ${friend.lastName || ''}`}
                       className="rounded-circle"
                       style={{ width: '36px', height: '36px', objectFit: 'cover' }}
                       onError={(e) => {
                         e.target.src = '/default-imgs/avatar.png';
                       }}
                     />
-                    <span className="position-absolute bg-success rounded-circle"
-                          style={{ width: '8px', height: '8px', bottom: '2px', right: '2px', border: '1px solid white' }}></span>
+                    {/* Chỉ báo trạng thái online */}
+                    <span
+                      className="position-absolute bg-success rounded-circle"
+                      style={{ width: '8px', height: '8px', bottom: '2px', right: '2px', border: '1px solid white' }}
+                      aria-label="Đang hoạt động"
+                    ></span>
                   </div>
                   <span className="text-dark">{`${friend.firstName || ''} ${friend.lastName || ''}`}</span>
                 </div>
+                {/* Hiển thị số tin nhắn chưa đọc */}
                 {unreadCounts[friend.id] > 0 && (
-                  <span className="badge rounded-pill bg-danger">
+                  <span className="badge rounded-pill bg-danger" aria-label={`${unreadCounts[friend.id]} tin nhắn chưa đọc`}>
                     {unreadCounts[friend.id]}
                   </span>
                 )}
@@ -216,7 +204,7 @@ function RightSidebar() {
         )}
       </div>
 
-      {/* Custom CSS */}
+      {/* CSS tùy chỉnh */}
       <style jsx="true">{`
         .contact-item:hover {
           background-color: #f0f2f5;

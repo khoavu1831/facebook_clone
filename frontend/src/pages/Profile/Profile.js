@@ -8,6 +8,10 @@ import { useParams } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import EditProfileModal from '../../components/Profile/EditProfileModal';
 
+/**
+ * Trang hồ sơ người dùng
+ * Hiển thị thông tin cá nhân và bài đăng của người dùng
+ */
 function Profile() {
   const { userId } = useParams();
   const [posts, setPosts] = useState([]);
@@ -15,13 +19,16 @@ function Profile() {
   const [profileData, setProfileData] = useState(null);
   const [error, setError] = useState(null);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
-  const [imageVersion, setImageVersion] = useState(Date.now()); // State to track image version for cache busting
+  const [imageVersion, setImageVersion] = useState(Date.now()); // State để theo dõi phiên bản hình ảnh cho cache busting
   const [showEditModal, setShowEditModal] = useState(false);
 
   // Sử dụng UserContext thay vì lấy trực tiếp từ localStorage
   const { currentUser, updateUser } = useUser();
   const { showSuccess, showError } = useToast();
 
+  /**
+   * Lấy thông tin hồ sơ và bài đăng của người dùng
+   */
   useEffect(() => {
     const fetchProfileAndPosts = async () => {
       try {
@@ -41,18 +48,18 @@ function Profile() {
               const userData = JSON.parse(localStorage.getItem('userData'));
               profileId = userData?.id;
             } catch (e) {
-              console.error('Error parsing userData from localStorage:', e);
+              console.error('Lỗi khi phân tích dữ liệu người dùng từ localStorage:', e);
             }
           }
         }
 
         if (!profileId) {
-          setError('User not found');
+          setError('Không tìm thấy người dùng');
           setIsLoading(false);
           return;
         }
 
-        // Kiểm tra xem có phải profile của chính mình không
+        // Kiểm tra xem có phải hồ sơ của chính mình không
         // Nếu currentUser không có, thử lấy từ localStorage
         let currentUserId = currentUser?.id;
         if (!currentUserId) {
@@ -60,12 +67,12 @@ function Profile() {
             const userData = JSON.parse(localStorage.getItem('userData'));
             currentUserId = userData?.id;
           } catch (e) {
-            console.error('Error parsing userData for isOwnProfile check:', e);
+            console.error('Lỗi khi phân tích dữ liệu người dùng cho kiểm tra isOwnProfile:', e);
           }
         }
         setIsOwnProfile(profileId === currentUserId);
 
-        // Fetch profile data
+        // Lấy dữ liệu hồ sơ
         const profileResponse = await fetch(`${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.PROFILE}/${profileId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('userToken')}`
@@ -73,18 +80,18 @@ function Profile() {
         });
 
         if (!profileResponse.ok) {
-          throw new Error('Failed to fetch profile');
+          throw new Error('Không thể lấy thông tin hồ sơ');
         }
 
         const profileData = await profileResponse.json();
 
-        // Store the complete profile data
+        // Lưu trữ dữ liệu hồ sơ đầy đủ
         setProfileData(profileData);
 
-        // Update imageVersion to force re-render of images
+        // Cập nhật imageVersion để buộc render lại hình ảnh
         setImageVersion(Date.now());
 
-        // Fetch user's posts using the new endpoint
+        // Lấy bài đăng của người dùng sử dụng endpoint mới
         const postsResponse = await fetch(
           `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.POSTS}/user/${profileId}?viewerId=${currentUser?.id}`,
           {
@@ -95,70 +102,91 @@ function Profile() {
         );
 
         if (!postsResponse.ok) {
-          throw new Error('Failed to fetch posts');
+          throw new Error('Không thể lấy bài đăng');
         }
 
         const postsData = await postsResponse.json();
         setPosts(Array.isArray(postsData) ? postsData : []);
 
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Lỗi khi lấy dữ liệu:', error);
         setError(error.message);
       } finally {
         setIsLoading(false);
       }
     };
 
-    // Always try to fetch profile data if there's a token
+    // Luôn cố gắng lấy dữ liệu hồ sơ nếu có token
     const hasToken = !!localStorage.getItem('userToken');
     if (hasToken) {
       fetchProfileAndPosts();
     }
   }, [userId, currentUser?.id]);
 
-  // Nếu không có user data, sử dụng cached data từ localStorage thay vì redirect
+  /**
+   * Kiểm tra đăng nhập và chuyển hướng nếu cần
+   */
   useEffect(() => {
     // Kiểm tra xem có token không thay vì kiểm tra currentUser
     const hasToken = !!localStorage.getItem('userToken');
 
-    // Chỉ redirect nếu không có token
+    // Chỉ chuyển hướng nếu không có token
     if (!hasToken) {
-      console.log("No token found in Profile, redirecting to login");
       window.location.href = '/login';
     }
   }, []);
 
+  // Hiển thị thông báo lỗi nếu có
   if (error) {
     return <div className="alert alert-danger m-3">{error}</div>;
   }
 
+  // Hiển thị trạng thái đang tải
   if (isLoading) {
-    return <div className="text-center mt-5">Loading...</div>;
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Đang tải...</span>
+        </div>
+      </div>
+    );
   }
 
+  /**
+   * Xử lý khi thêm bài đăng mới
+   * @param {Object} newPost - Bài đăng mới
+   */
   const handleAddPost = (newPost) => {
     setPosts(prevPosts => [newPost, ...prevPosts]);
   };
 
+  /**
+   * Xử lý khi cập nhật hồ sơ
+   * @param {Object} updatedUserData - Dữ liệu người dùng đã cập nhật
+   */
   const handleProfileUpdate = (updatedUserData) => {
-    // Update the profile data state
+    // Cập nhật state dữ liệu hồ sơ
     setProfileData(updatedUserData);
 
-    // Update the user context
+    // Cập nhật context người dùng
     updateUser(updatedUserData);
 
-    // Force re-render of images with a new timestamp
+    // Buộc render lại hình ảnh với timestamp mới
     setImageVersion(Date.now());
   };
 
-  // Get formatted name and prepare image URLs
+  /**
+   * Lấy URL đầy đủ của hình ảnh
+   * @param {string} path - Đường dẫn hình ảnh
+   * @returns {string} URL đầy đủ của hình ảnh
+   */
   const getFullImageUrl = (path) => {
     if (!path) return '/default-imgs/avatar.png';
     if (path.startsWith('http') || path.startsWith('blob')) return path;
     return `${API_ENDPOINTS.BASE_URL}${path.startsWith('/') ? '' : '/'}${path}?v=${imageVersion}`;
   };
 
-  // Format user data for display
+  // Định dạng dữ liệu người dùng để hiển thị
   const fullName = profileData ? `${profileData.firstName} ${profileData.lastName}` : '';
   const bio = profileData?.bio || '';
   const avatarUrl = profileData?.avatar ? getFullImageUrl(profileData.avatar) : '/default-imgs/avatar.png';
@@ -166,10 +194,11 @@ function Profile() {
 
   return (
     <div className="profile-container" style={{ marginTop: '62px' }}>
+      {/* Phần ảnh bìa */}
       <div className="cover-photo-section">
         <img
           src={coverUrl}
-          alt="Cover"
+          alt="Ảnh bìa"
           className="cover-photo"
           onError={(e) => {
             e.target.src = '/default-imgs/cover.jpg';
@@ -178,11 +207,12 @@ function Profile() {
         />
       </div>
 
+      {/* Phần thông tin hồ sơ */}
       <div className="profile-header">
         <div className="avatar-section">
           <img
             src={avatarUrl}
-            alt="Avatar"
+            alt="Ảnh đại diện"
             className="avatar"
             onError={(e) => {
               e.target.src = '/default-imgs/avatar.png';
@@ -197,15 +227,19 @@ function Profile() {
             <button
               className="edit-profile-button"
               onClick={() => setShowEditModal(true)}
+              aria-label="Chỉnh sửa hồ sơ"
             >
-              Edit Profile
+              Chỉnh sửa hồ sơ
             </button>
           )}
         </div>
       </div>
 
+      {/* Phần nội dung hồ sơ */}
       <div className="profile-content">
+        {/* Form tạo bài đăng mới (chỉ hiển thị trên hồ sơ của chính mình) */}
         {isOwnProfile && <PostForm onAddPost={handleAddPost} />}
+        {/* Danh sách bài đăng */}
         {posts.length > 0 ? (
           <PostList
             posts={posts}
@@ -213,11 +247,11 @@ function Profile() {
             currentUser={currentUser}
           />
         ) : (
-          <p className="text-center mt-3">No posts yet</p>
+          <p className="text-center mt-3">Chưa có bài đăng nào</p>
         )}
       </div>
 
-      {/* Edit Profile Modal */}
+      {/* Modal chỉnh sửa hồ sơ */}
       {isOwnProfile && (
         <EditProfileModal
           show={showEditModal}
