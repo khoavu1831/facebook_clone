@@ -51,8 +51,8 @@
 }
 
 .chat-message {
-  margin-bottom: 10px;
-  padding: 8px 12px;
+  /* margin-bottom: 10px; */
+  padding: 2px 12px;
   border-radius: 10px;
   max-width: 80%;
 }

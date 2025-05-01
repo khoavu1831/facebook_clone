@@ -296,6 +296,12 @@ public class PostController {
 
             Post post = postOptional.get();
 
+            // Cho phép admin xóa bất kỳ bài đăng nào
+            if (userId.equals("admin")) {
+                postRepository.deleteById(id);
+                return ResponseEntity.ok().build();
+            }
+
             // Kiểm tra xem người dùng có phải là chủ sở hữu không
             if (!post.getUserId().equals(userId)) {
                 return ResponseEntity.status(403).body("Bạn không có quyền xóa bài đăng này");

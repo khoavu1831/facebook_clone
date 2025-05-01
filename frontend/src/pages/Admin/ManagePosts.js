@@ -68,12 +68,19 @@ const ManagePosts = () => {
 
   const deletePost = async () => {
     try {
-      await axios.delete(`http://localhost:8080/api/posts/${currentPost.id}`);
+      // Thêm tham số userId vào URL để admin có thể xóa bất kỳ bài viết nào
+      await axios.delete(`http://localhost:8080/api/posts/${currentPost.id}?userId=admin`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        }
+      });
       setPosts(posts.filter((post) => post.id !== currentPost.id));
       setFilteredPosts(filteredPosts.filter((post) => post.id !== currentPost.id));
       setShowDeleteModal(false);
+      setError(''); // Xóa thông báo lỗi nếu có
     } catch (err) {
-      setError('Failed to delete post');
+      console.error('Error deleting post:', err);
+      setError('Failed to delete post: ' + (err.response?.data || err.message));
     }
   };
 
