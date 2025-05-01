@@ -10,6 +10,7 @@ import SharePostModal from '../../components/Post/SharePostModal';
 import PostOptionsMenu from '../../components/Post/PostOptionsMenu';
 import ImageViewerModal from '../../components/Post/ImageViewerModal';
 import './PostDetail.css';
+import CommentSuggestions from '../../components/CommentSuggestions';
 
 const PostDetail = () => {
   const { postId } = useParams();
@@ -141,7 +142,7 @@ const PostDetail = () => {
             }
 
             // Tạo bản sao của updatedPost để tránh tham chiếu trực tiếp
-            const newPost = {...updatedPost};
+            const newPost = { ...updatedPost };
 
             // Giữ nguyên các đường dẫn hình ảnh và video từ post cũ
             // để tránh việc tải lại không cần thiết
@@ -170,7 +171,7 @@ const PostDetail = () => {
 
             // Nếu là bài đăng chia sẻ, cũng giữ nguyên hình ảnh của bài gốc
             if (prevPost.originalPost && newPost.originalPost) {
-              newPost.originalPost = {...newPost.originalPost};
+              newPost.originalPost = { ...newPost.originalPost };
               if (prevPost.originalPost.images && newPost.originalPost.images) {
                 newPost.originalPost.images = [...prevPost.originalPost.images];
               }
@@ -537,7 +538,7 @@ const PostDetail = () => {
 
         return () => clearTimeout(scrollTimeout);
       }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleReply = async () => {
@@ -976,31 +977,30 @@ const PostDetail = () => {
                 <div className="comments-section">
                   {/* Add Comment Input */}
                   <div className="d-flex gap-2 align-items-center mb-4">
-                    <MemoizedAvatar
-                      src={getFullImageUrl(userProfile?.avatar)}
-                      alt="Người dùng hiện tại"
-                      className="rounded-circle"
-                      style={{ width: '32px', height: '32px', objectFit: 'cover' }}
-                    />
+
                     <div className="flex-grow-1 position-relative">
                       <div className="d-flex align-items-center">
+                        <MemoizedAvatar
+                          src={getFullImageUrl(userProfile?.avatar)}
+                          alt="Người dùng hiện tại"
+                          className="rounded-circle"
+                          style={{ width: '32px', height: '32px', objectFit: 'cover', marginRight: '8px'}}
+                        />
                         <input
                           type="text"
                           className="form-control rounded-pill comment-input"
                           placeholder="Viết bình luận..."
                           value={commentInput}
                           onChange={(e) => {
-                            // Đánh dấu người dùng đang nhập liệu
                             isUserTyping.current = true;
                             setCommentInput(e.target.value);
                           }}
                           onFocus={() => {
-                            // Đánh dấu người dùng đang nhập liệu
                             isUserTyping.current = true;
                           }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              e.preventDefault(); // Ngăn chặn hành vi mặc định của phím Enter
+                              e.preventDefault();
                               handleComment(commentInput);
                             }
                           }}
@@ -1013,6 +1013,13 @@ const PostDetail = () => {
                           <i className="bi bi-send-fill"></i>
                         </button>
                       </div>
+
+                      {/* Thêm component gợi ý bình luận */}
+                      <CommentSuggestions
+                        postContent={post?.content}
+                        imageUrl={post?.images && post.images.length > 0 ? post.images[0] : null}
+                        onSelectSuggestion={(suggestion) => setCommentInput(suggestion)}
+                      />
                     </div>
                   </div>
 

@@ -55,6 +55,34 @@ public class ChatController {
             return "Lỗi khi xử lý phản hồi từ Gemini";
         }
     }
+
+    @PostMapping("/suggest-comment")
+    public ResponseEntity<?> suggestComment(@RequestBody SuggestCommentRequest request) {
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="
+                + geminiApiKey;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Content-Type", "application/json");
+
+        // Tạo prompt cho Gemini
+        String prompt = "Gợi ý 3 bình luận ngắn gọn, tích cực và phù hợp cho bài đăng sau (mỗi bình luận không quá 50 ký tự, phân tách bằng dấu |): ";
+        
+        if (request.getPostContent() != null) {
+            prompt += "Nội dung bài đăng: " + request.getPostContent();
+        }
+        
+        if (request.getImageUrl() != null) {
+            prompt += " Bài đăng có hình ảnh: " + request.getImageUrl();
+        }
+
+        String body = "{\"contents\": [{\"parts\": [{\"text\": \"" + prompt + "\"}]}]}";
+        HttpEntity<String> entity = new HttpEntity<>(body, headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+        String suggestions = extractReply(response.getBody());
+
+        return ResponseEntity.ok(new CommentSuggestionResponse(suggestions));
+    }
 }
 
 class ChatRequest {
@@ -82,5 +110,42 @@ class ChatResponse {
 
     public void setReply(String reply) {
         this.reply = reply;
+    }
+}
+
+class SuggestCommentRequest {
+    private String postContent;
+    private String imageUrl;
+
+    public String getPostContent() {
+        return postContent;
+    }
+
+    public void setPostContent(String postContent) {
+        this.postContent = postContent;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+}
+
+class CommentSuggestionResponse {
+    private String suggestions;
+
+    public CommentSuggestionResponse(String suggestions) {
+        this.suggestions = suggestions;
+    }
+
+    public String getSuggestions() {
+        return suggestions;
+    }
+
+    public void setSuggestions(String suggestions) {
+        this.suggestions = suggestions;
     }
 }

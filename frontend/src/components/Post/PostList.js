@@ -7,6 +7,7 @@ import { useToast } from '../../context/ToastContext';
 import PostOptionsMenu from './PostOptionsMenu';
 import ImageViewerModal from './ImageViewerModal';
 import { useNavigate } from 'react-router-dom';
+import CommentSuggestions from '../CommentSuggestions';
 
 /**
  * Component hiển thị nội dung bài đăng, được memo để tránh render lại không cần thiết
