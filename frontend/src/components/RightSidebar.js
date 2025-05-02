@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/api';
 import { useChat } from '../contexts/ChatContext';
+import { useNavigate } from 'react-router-dom';
+import './RightSidebar.css';
 
 /**
  * Component hiển thị danh sách bạn bè ở thanh bên phải
@@ -9,6 +11,13 @@ function RightSidebar() {
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(false);
   const { openChat, unreadCounts } = useChat();
+  const navigate = useNavigate();
+
+  // Thêm hàm xử lý click vào avatar
+  const handleAvatarClick = (userId, event) => {
+    event.stopPropagation(); // Ngăn sự kiện click lan tỏa đến phần tử cha
+    navigate(`/profile/${userId}`);
+  };
 
   // Lấy thông tin người dùng trực tiếp từ localStorage
   const getUserData = () => {
@@ -167,12 +176,13 @@ function RightSidebar() {
                 tabIndex="0"
               >
                 <div className="d-flex align-items-center gap-2">
-                  <div className="position-relative">
+                  <div className="position-relative" title="Click để xem hồ sơ">
                     <img
                       src={getFullImageUrl(friend.avatar)}
                       alt={`Ảnh đại diện của ${friend.firstName || ''} ${friend.lastName || ''}`}
-                      className="rounded-circle"
-                      style={{ width: '36px', height: '36px', objectFit: 'cover' }}
+                      className="rounded-circle avatar-clickable"
+                      style={{ width: '36px', height: '36px', objectFit: 'cover', cursor: 'pointer' }}
+                      onClick={(e) => handleAvatarClick(friend.id, e)}
                       onError={(e) => {
                         e.target.src = '/default-imgs/avatar.png';
                       }}

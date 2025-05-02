@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../../config/api';
+import { useNavigate } from 'react-router-dom';
 import './Friends.css';
 
 /**
@@ -25,9 +26,20 @@ function Friends() {
   const [activeTab, setActiveTab] = useState('requests');
   const friendsPerPage = 6;
   const currentUser = JSON.parse(localStorage.getItem('userData'));
+  const navigate = useNavigate();
 
   // Tham chiếu để theo dõi xem component có đang được mount hay không
   const isMounted = useRef(true);
+
+  /**
+   * Xử lý khi click vào avatar để xem profile
+   * @param {string} userId - ID của người dùng
+   * @param {Event} event - Sự kiện click
+   */
+  const handleAvatarClick = (userId, event) => {
+    event.stopPropagation(); // Ngăn sự kiện click lan tỏa đến phần tử cha
+    navigate(`/profile/${userId}`);
+  };
 
   /**
    * Lấy dữ liệu bạn bè, lời mời kết bạn hoặc gợi ý bạn bè dựa trên tab đang active
@@ -289,11 +301,16 @@ function Friends() {
                     <img
                       src={getFullImageUrl(item.user?.avatar || item.avatar)}
                       alt={`Ảnh đại diện của ${item.user?.firstName || item.firstName} ${item.user?.lastName || item.lastName}`}
-                      className="card-img-top"
+                      className="card-img-top avatar-clickable"
+                      onClick={(e) => handleAvatarClick(item.user?.id || item.id, e)}
                     />
                   </div>
                   <div className="card-body">
-                    <h5 className="card-title">
+                    <h5 
+                      className="card-title"
+                      style={{ cursor: 'pointer' }}
+                      onClick={(e) => handleAvatarClick(item.user?.id || item.id, e)}
+                    >
                       {item.user ? `${item.user.firstName} ${item.user.lastName}` : `${item.firstName} ${item.lastName}`}
                     </h5>
                     <div className="button-group">
