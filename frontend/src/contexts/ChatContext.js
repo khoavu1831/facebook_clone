@@ -21,8 +21,32 @@ export const ChatProvider = ({ children }) => {
   useEffect(() => {
     const userData = localStorage.getItem('userData');
     if (userData) {
-      setCurrentUser(JSON.parse(userData));
+      try {
+        setCurrentUser(JSON.parse(userData));
+      } catch (error) {
+        console.error('Lỗi khi phân tích dữ liệu người dùng:', error);
+      }
     }
+
+    // Lắng nghe sự kiện storage để cập nhật khi userData thay đổi
+    const handleStorageChange = (e) => {
+      if (e.key === 'userData') {
+        if (e.newValue) {
+          try {
+            setCurrentUser(JSON.parse(e.newValue));
+          } catch (error) {
+            console.error('Lỗi khi phân tích dữ liệu người dùng từ storage event:', error);
+          }
+        } else {
+          setCurrentUser(null);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   // Đăng ký nhận thông báo tin nhắn khi người dùng đã đăng nhập
@@ -97,6 +121,28 @@ export const ChatProvider = ({ children }) => {
    * @param {Object} friend - Thông tin người bạn
    */
   const openChat = async (friend) => {
+    // Kiểm tra người dùng hiện tại đã được tải chưa
+    if (!currentUser || !currentUser.id) {
+      // Nếu chưa có thông tin người dùng, thử lấy từ localStorage
+      const userData = localStorage.getItem('userData');
+      if (!userData) {
+        console.error('Lỗi khi mở cuộc trò chuyện: Chưa đăng nhập');
+        return;
+      }
+
+      // Cập nhật currentUser từ localStorage
+      try {
+        const parsedUserData = JSON.parse(userData);
+        setCurrentUser(parsedUserData);
+
+        // Không tiếp tục xử lý trong lần gọi này, sẽ được xử lý sau khi currentUser được cập nhật
+        return;
+      } catch (error) {
+        console.error('Lỗi khi phân tích dữ liệu người dùng:', error);
+        return;
+      }
+    }
+
     // Kiểm tra xem cuộc trò chuyện đã mở chưa
     const existingChatIndex = activeChats.findIndex(
       chat => chat.friend.id === friend.id
@@ -171,6 +217,28 @@ export const ChatProvider = ({ children }) => {
    */
   const sendMessage = async (receiverId, content) => {
     if (!content.trim()) return;
+
+    // Kiểm tra người dùng hiện tại đã được tải chưa
+    if (!currentUser || !currentUser.id) {
+      // Nếu chưa có thông tin người dùng, thử lấy từ localStorage
+      const userData = localStorage.getItem('userData');
+      if (!userData) {
+        console.error('Lỗi khi gửi tin nhắn: Chưa đăng nhập');
+        return;
+      }
+
+      // Cập nhật currentUser từ localStorage
+      try {
+        const parsedUserData = JSON.parse(userData);
+        setCurrentUser(parsedUserData);
+
+        // Không tiếp tục xử lý trong lần gọi này, sẽ được xử lý sau khi currentUser được cập nhật
+        return;
+      } catch (error) {
+        console.error('Lỗi khi phân tích dữ liệu người dùng:', error);
+        return;
+      }
+    }
 
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/messages`, {

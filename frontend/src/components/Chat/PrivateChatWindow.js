@@ -11,7 +11,19 @@ function PrivateChatWindow({ friend }) {
   const [input, setInput] = useState('');
   const { sendMessage, closeChat, activeChats } = useChat();
   const messagesEndRef = useRef(null);
-  const currentUser = JSON.parse(localStorage.getItem('userData'));
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Lấy thông tin người dùng từ localStorage
+  useEffect(() => {
+    try {
+      const userData = localStorage.getItem('userData');
+      if (userData) {
+        setCurrentUser(JSON.parse(userData));
+      }
+    } catch (error) {
+      console.error('Lỗi khi phân tích dữ liệu người dùng:', error);
+    }
+  }, []);
 
   // Tìm cuộc trò chuyện cho người bạn này
   const chat = activeChats.find(c => c.friend.id === friend.id);
@@ -35,6 +47,28 @@ function PrivateChatWindow({ friend }) {
   const handleSend = (e) => {
     e.preventDefault();
     if (!input.trim()) return;
+
+    // Kiểm tra người dùng hiện tại đã được tải chưa
+    if (!currentUser) {
+      try {
+        const userData = localStorage.getItem('userData');
+        if (userData) {
+          setCurrentUser(JSON.parse(userData));
+          // Gửi tin nhắn sau khi đã cập nhật currentUser
+          setTimeout(() => {
+            sendMessage(friend.id, input);
+            setInput('');
+          }, 100);
+          return;
+        } else {
+          console.error('Không thể gửi tin nhắn: Chưa đăng nhập');
+          return;
+        }
+      } catch (error) {
+        console.error('Lỗi khi phân tích dữ liệu người dùng:', error);
+        return;
+      }
+    }
 
     sendMessage(friend.id, input);
     setInput('');
@@ -72,7 +106,7 @@ function PrivateChatWindow({ friend }) {
 
       {/* Phần nội dung chat */}
       <div className="chat-body">
-        {chat?.messages && chat.messages.length > 0 ? (
+        {chat?.messages && chat.messages.length > 0 && currentUser ? (
           chat.messages.map((message, index) => (
             <div
               key={message.id || index}
