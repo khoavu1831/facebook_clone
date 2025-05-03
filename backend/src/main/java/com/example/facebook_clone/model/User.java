@@ -19,6 +19,7 @@ public class User {
     private String avatar;
     private String coverPhoto;
     private String role = "USER"; // Default role
+    private String resetToken; // Token để đặt lại mật khẩu
     
     // Thêm getter và setter cho role
     public String getRole() { return role; }
@@ -60,4 +61,12 @@ public class User {
     
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
+
+    public String getResetToken() {
+        return resetToken;
+    }
+
+    public void setResetToken(String resetToken) {
+        this.resetToken = resetToken;
+    }
 }

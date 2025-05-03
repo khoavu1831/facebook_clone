@@ -2,6 +2,7 @@ package com.example.facebook_clone.controller;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.facebook_clone.model.User;
 import com.example.facebook_clone.repository.UserRepository;
 import com.example.facebook_clone.security.JwtUtil;
+import com.example.facebook_clone.service.EmailService;
 
 /**
  * Controller xử lý các API liên quan đến xác thực người dùng
@@ -26,6 +28,9 @@ public class AuthController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private EmailService emailService;
 
     /**
      * Đăng ký tài khoản mới
@@ -98,6 +103,59 @@ public class AuthController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", "Lỗi khi đăng nhập: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
+        try {
+            String email = request.get("email");
+            if (email == null || email.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Vui lòng cung cấp email"));
+            }
+
+            User user = userRepository.findByEmail(email);
+            if (user == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Email không tồn tại trong hệ thống"));
+            }
+
+            // Generate reset token
+            String resetToken = UUID.randomUUID().toString();
+            user.setResetToken(resetToken);
+            userRepository.save(user);
+
+            // Send reset email
+            emailService.sendPasswordResetEmail(email, resetToken);
+
+            return ResponseEntity.ok(Map.of("message", "Vui lòng kiểm tra email của bạn để đặt lại mật khẩu"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Lỗi khi xử lý yêu cầu: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
+        try {
+            String token = request.get("token");
+            String newPassword = request.get("newPassword");
+
+            if (token == null || newPassword == null || newPassword.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Vui lòng cung cấp token và mật khẩu mới"));
+            }
+
+            User user = userRepository.findByResetToken(token);
+            if (user == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Token không hợp lệ hoặc đã hết hạn"));
+            }
+
+            // Update password and clear reset token
+            user.setPassword(newPassword);
+            user.setResetToken(null);
+            userRepository.save(user);
+
+            return ResponseEntity.ok(Map.of("message", "Mật khẩu đã được đặt lại thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Lỗi khi đặt lại mật khẩu: " + e.getMessage()));
         }
     }
 }
