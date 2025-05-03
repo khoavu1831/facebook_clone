@@ -111,10 +111,6 @@ Frontend kết nối với API backend bằng cách sử dụng cài đặt prox
 
 ## Giấy phép
 
-<div align="center">
-  <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
-</div>
-
 <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #1877f2;">
   <p><strong>MIT License</strong></p>
   <p>Copyright (c) 2023 Facebook Clone Team</p>
