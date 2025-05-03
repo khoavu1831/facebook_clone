@@ -1,5 +1,6 @@
 package com.example.facebook_clone.controller;
 
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -121,6 +122,36 @@ public class ProfileController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Lỗi khi cập nhật hồ sơ: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/update-password")
+    public ResponseEntity<?> updatePassword(
+            @RequestParam("userId") String userId,
+            @RequestParam("currentPassword") String currentPassword,
+            @RequestParam("newPassword") String newPassword) {
+
+        try {
+            Optional<User> userOptional = userRepository.findById(userId);
+            if (!userOptional.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            User user = userOptional.get();
+
+            // Verify current password
+            if (!user.getPassword().equals(currentPassword)) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Mật khẩu hiện tại không chính xác"));
+            }
+
+            // Update password
+            user.setPassword(newPassword);
+            userRepository.save(user);
+
+            return ResponseEntity.ok(Map.of("message", "Mật khẩu đã được cập nhật thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi khi cập nhật mật khẩu: " + e.getMessage()));
         }
     }
 }

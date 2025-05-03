@@ -206,3 +206,69 @@
     height: auto !important;
   }
 }
+
+/* Password change form styles */
+.password-form {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.password-form .form-label {
+  font-weight: 500;
+  color: #050505;
+  margin-bottom: 8px;
+}
+
+.password-form .form-control {
+  border-color: #dddfe2;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 15px;
+}
+
+.password-form .form-control:focus {
+  border-color: #1877f2;
+  box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
+}
+
+.password-form .btn-primary {
+  background-color: #1877f2;
+  border-color: #1877f2;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  width: 100%;
+  margin-top: 16px;
+}
+
+.password-form .btn-primary:hover {
+  background-color: #166fe5;
+  border-color: #166fe5;
+}
+
+.password-form .btn-primary:disabled {
+  background-color: #e4e6eb;
+  border-color: #e4e6eb;
+  cursor: not-allowed;
+}
+
+.password-form .form-text {
+  font-size: 13px;
+  color: #65676b;
+  margin-top: 4px;
+}
+
+.password-form .form-control.is-invalid {
+  border-color: #dc3545;
+}
+
+.password-form .form-control.is-invalid:focus {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
+}
+
+.password-form .invalid-feedback {
+  font-size: 13px;
+  color: #dc3545;
+  margin-top: 4px;
+}
