@@ -122,13 +122,29 @@ public class FriendController {
             Friend friendRequest = friendRepository.findById(requestId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy lời mời kết bạn"));
 
-            // Cập nhật trạng thái lời mời kết bạn
-            friendRequest.setStatus(response);
-            Friend savedRequest = friendRepository.save(friendRequest);
+            if ("REJECTED".equals(response)) {
+                // Khi từ chối, xóa lời mời kết bạn thay vì cập nhật trạng thái
+                // Điều này cho phép người gửi lời mời có thể gửi lại lời mời trong tương lai
+                String userId = friendRequest.getUserId(); // Người gửi lời mời
+                String friendId = friendRequest.getFriendId(); // Người nhận lời mời
+                
+                // Thông báo cho người gửi lời mời rằng lời mời đã bị từ chối
+                Map<String, Object> notification = new HashMap<>();
+                notification.put("type", "REQUEST_REJECTED");
+                notification.put("requestId", requestId);
+                messagingTemplate.convertAndSend("/topic/friends/" + userId, notification);
+                
+                // Xóa lời mời kết bạn
+                friendRepository.delete(friendRequest);
+                
+                return ResponseEntity.ok(Map.of("message", "Đã từ chối lời mời kết bạn"));
+            } else {
+                // Nếu chấp nhận, giữ nguyên logic hiện tại
+                friendRequest.setStatus(response);
+                Friend savedRequest = friendRepository.save(friendRequest);
 
-            // Nếu chấp nhận lời mời kết bạn, tạo thêm một bản ghi Friend mới
-            // để thể hiện mối quan hệ hai chiều
-            if ("ACCEPTED".equals(response)) {
+                // Nếu chấp nhận lời mời kết bạn, tạo thêm một bản ghi Friend mới
+                // để thể hiện mối quan hệ hai chiều
                 try {
                     Friend reverseRequest = new Friend();
                     reverseRequest.setUserId(friendRequest.getFriendId());  // Đảo ngược userId và friendId
@@ -160,15 +176,9 @@ public class FriendController {
                 } catch (Exception e) {
                     // Ghi nhận lỗi nhưng vẫn tiếp tục xử lý
                 }
-            } else if ("REJECTED".equals(response)) {
-                // Thông báo cho người gửi lời mời rằng lời mời đã bị từ chối
-                Map<String, Object> notification = new HashMap<>();
-                notification.put("type", "REQUEST_REJECTED");
-                notification.put("requestId", requestId);
-                messagingTemplate.convertAndSend("/topic/friends/" + friendRequest.getUserId(), notification);
-            }
 
-            return ResponseEntity.ok(savedRequest);
+                return ResponseEntity.ok(savedRequest);
+            }
         } catch (RuntimeException e) {
             return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
@@ -284,20 +294,25 @@ public class FriendController {
     @GetMapping("/suggestions/{userId}")
     public ResponseEntity<?> getFriendSuggestions(@PathVariable String userId) {
         try {
-            // Chỉ lấy danh sách bạn bè đã được chấp nhận (ACCEPTED)
-            List<Friend> acceptedFriends = friendRepository.findByUserIdOrFriendIdAndStatus(userId, userId, "ACCEPTED");
-            Set<String> acceptedFriendIds = acceptedFriends.stream()
+            // Lấy danh sách bạn bè hiện tại (chỉ lấy những người đã ACCEPTED)
+            List<Friend> friends = friendRepository.findByUserIdOrFriendIdAndStatus(userId, userId, "ACCEPTED");
+            Set<String> friendIds = friends.stream()
                     .map(friend -> friend.getUserId().equals(userId) ? friend.getFriendId() : friend.getUserId())
                     .collect(Collectors.toSet());
 
-            // Thêm userId vào set để loại trừ (không gợi ý chính mình)
-            acceptedFriendIds.add(userId);
+            // Lấy danh sách lời mời kết bạn đang chờ (PENDING) mà người dùng đã gửi
+            List<Friend> pendingRequests = friendRepository.findByUserIdAndStatus(userId, "PENDING");
+            Set<String> pendingRequestIds = pendingRequests.stream()
+                    .map(Friend::getFriendId)
+                    .collect(Collectors.toSet());
 
-            // Lấy tất cả user trừ những người đã là bạn bè (ACCEPTED)
-            // Những người có trạng thái khác (PENDING, REJECTED) vẫn sẽ xuất hiện trong gợi ý
+            // Thêm userId vào set để loại trừ
+            friendIds.add(userId);
+
+            // Lấy tất cả user trừ những người đã là bạn và những người đang có lời mời PENDING
             List<User> allUsers = userRepository.findAll();
             List<User> suggestions = allUsers.stream()
-                    .filter(user -> !acceptedFriendIds.contains(user.getId()))
+                    .filter(user -> !friendIds.contains(user.getId()) && !pendingRequestIds.contains(user.getId()))
                     .limit(10)
                     .collect(Collectors.toList());
 
