@@ -14,6 +14,8 @@ import SearchResults from './pages/Search/SearchResults';
 import Auth from './components/Auth/Auth';
 import Admin from './pages/Admin/Admin';
 import AdminAuth from './components/AdminAuth/AdminAuth';
+import ForgotPassword from './components/Auth/ForgotPassword';
+import ResetPassword from './components/Auth/ResetPassword';
 
 // Component bảo vệ route - chỉ cho phép truy cập khi đã đăng nhập
 const ProtectedRoute = ({ children }) => {
@@ -39,6 +41,8 @@ function App() {
               {/* Routes công khai - không cần đăng nhập */}
               <Route path="/login" element={<Auth isLogin={true} />} />
               <Route path="/register" element={<Auth isLogin={false} />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/admin/login" element={<AdminAuth />} />
 
               {/* Routes được bảo vệ - chỉ dành cho người dùng đã đăng nhập */}
