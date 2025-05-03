@@ -41,6 +41,12 @@ const EditProfileModal = ({
   const [activeTab, setActiveTab] = useState('personal');
   const [errors, setErrors] = useState({});
 
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordErrors, setPasswordErrors] = useState({});
+
   // Initialize form with user data
   useEffect(() => {
     if (userData) {
@@ -102,20 +108,41 @@ const EditProfileModal = ({
   const validateForm = () => {
     const newErrors = {};
 
-    if (!firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!lastName.trim()) newErrors.lastName = 'Last name is required';
-    if (!email.trim()) newErrors.email = 'Email is required';
-    if (email && !/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Email is invalid';
+    if (!firstName.trim()) newErrors.firstName = 'Tên là bắt buộc';
+    if (!lastName.trim()) newErrors.lastName = 'Họ là bắt buộc';
+    if (!email.trim()) newErrors.email = 'Email là bắt buộc';
+    if (email && !/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Email không hợp lệ';
 
     // Date validation
     if (day && month && year) {
       const birthDate = new Date(`${month} ${day}, ${year}`);
       if (isNaN(birthDate.getTime())) {
-        newErrors.date = 'Invalid date';
+        newErrors.date = 'Ngày sinh không hợp lệ';
       }
     }
 
     setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validatePasswordForm = () => {
+    const newErrors = {};
+
+    if (!currentPassword.trim()) {
+      newErrors.currentPassword = 'Vui lòng nhập mật khẩu hiện tại';
+    }
+    if (!newPassword.trim()) {
+      newErrors.newPassword = 'Vui lòng nhập mật khẩu mới';
+    } else if (newPassword.length < 6) {
+      newErrors.newPassword = 'Mật khẩu phải có ít nhất 6 ký tự';
+    }
+    if (!confirmNewPassword.trim()) {
+      newErrors.confirmNewPassword = 'Vui lòng xác nhận mật khẩu mới';
+    } else if (confirmNewPassword !== newPassword) {
+      newErrors.confirmNewPassword = 'Mật khẩu xác nhận không khớp';
+    }
+
+    setPasswordErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
@@ -312,6 +339,53 @@ const EditProfileModal = ({
     }
   };
 
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+
+    if (!validatePasswordForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('userId', userData.id);
+      formData.append('currentPassword', currentPassword);
+      formData.append('newPassword', newPassword);
+
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.PROFILE}/update-password`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('userToken')}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Không thể cập nhật mật khẩu');
+      }
+
+      if (onSuccess) {
+        onSuccess('Mật khẩu đã được cập nhật thành công');
+      }
+
+      // Reset password fields
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setPasswordErrors({});
+      setActiveTab('personal');
+    } catch (error) {
+      if (onError) {
+        onError(error.message);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const submitFormData = async (formData) => {
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.PROFILE}/update`, {
@@ -372,7 +446,7 @@ const EditProfileModal = ({
       className="edit-profile-modal"
     >
       <Modal.Header closeButton>
-        <Modal.Title>Edit Profile</Modal.Title>
+        <Modal.Title>Chỉnh sửa hồ sơ</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Tabs
@@ -380,12 +454,12 @@ const EditProfileModal = ({
           onSelect={(k) => setActiveTab(k)}
           className="mb-4 profile-tabs"
         >
-          <Tab eventKey="personal" title="Personal Information">
+          <Tab eventKey="personal" title="Thông tin cá nhân">
             <Form>
               <Row>
                 <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>First Name</Form.Label>
+                    <Form.Label>Tên</Form.Label>
                     <Form.Control
                       type="text"
                       value={firstName}
@@ -399,7 +473,7 @@ const EditProfileModal = ({
                 </Col>
                 <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Last Name</Form.Label>
+                    <Form.Label>Họ</Form.Label>
                     <Form.Control
                       type="text"
                       value={lastName}
@@ -427,7 +501,7 @@ const EditProfileModal = ({
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Bio</Form.Label>
+                <Form.Label>Giới thiệu</Form.Label>
                 <Form.Control
                   as="textarea"
                   rows={3}
@@ -435,17 +509,17 @@ const EditProfileModal = ({
                   onChange={(e) => setBio(e.target.value)}
                 />
                 <Form.Text className="text-muted">
-                  Tell people a little about yourself
+                  Hãy chia sẻ một chút về bản thân
                 </Form.Text>
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Gender</Form.Label>
+                <Form.Label>Giới tính</Form.Label>
                 <div>
                   <Form.Check
                     inline
                     type="radio"
-                    label="Male"
+                    label="Nam"
                     name="gender"
                     id="male"
                     checked={gender === 'Male'}
@@ -454,7 +528,7 @@ const EditProfileModal = ({
                   <Form.Check
                     inline
                     type="radio"
-                    label="Female"
+                    label="Nữ"
                     name="gender"
                     id="female"
                     checked={gender === 'Female'}
@@ -463,7 +537,7 @@ const EditProfileModal = ({
                   <Form.Check
                     inline
                     type="radio"
-                    label="Other"
+                    label="Khác"
                     name="gender"
                     id="other"
                     checked={gender === 'Other'}
@@ -473,7 +547,7 @@ const EditProfileModal = ({
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Date of Birth</Form.Label>
+                <Form.Label>Ngày sinh</Form.Label>
                 <Row>
                   <Col md={4}>
                     <Form.Select
@@ -481,7 +555,7 @@ const EditProfileModal = ({
                       onChange={(e) => setDay(e.target.value)}
                       isInvalid={!!errors.date}
                     >
-                      <option value="">Day</option>
+                      <option value="">Ngày</option>
                       {[...Array(31)].map((_, i) => (
                         <option key={i + 1} value={i + 1}>{i + 1}</option>
                       ))}
@@ -493,8 +567,8 @@ const EditProfileModal = ({
                       onChange={(e) => setMonth(e.target.value)}
                       isInvalid={!!errors.date}
                     >
-                      <option value="">Month</option>
-                      {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                      <option value="">Tháng</option>
+                      {['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'].map((m, i) => (
                         <option key={i} value={m}>{m}</option>
                       ))}
                     </Form.Select>
@@ -505,7 +579,7 @@ const EditProfileModal = ({
                       onChange={(e) => setYear(e.target.value)}
                       isInvalid={!!errors.date}
                     >
-                      <option value="">Year</option>
+                      <option value="">Năm</option>
                       {[...Array(100)].map((_, i) => {
                         const yearOption = new Date().getFullYear() - i;
                         return <option key={yearOption} value={yearOption}>{yearOption}</option>;
@@ -520,14 +594,65 @@ const EditProfileModal = ({
             </Form>
           </Tab>
 
-          <Tab eventKey="avatar" title="Profile Picture">
+          <Tab eventKey="password" title="Đổi mật khẩu">
+            <Form onSubmit={handlePasswordChange}>
+              <Form.Group className="mb-3">
+                <Form.Label>Mật khẩu hiện tại</Form.Label>
+                <Form.Control
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  isInvalid={!!passwordErrors.currentPassword}
+                />
+                <Form.Control.Feedback type="invalid">
+                  {passwordErrors.currentPassword}
+                </Form.Control.Feedback>
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Mật khẩu mới</Form.Label>
+                <Form.Control
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  isInvalid={!!passwordErrors.newPassword}
+                />
+                <Form.Control.Feedback type="invalid">
+                  {passwordErrors.newPassword}
+                </Form.Control.Feedback>
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Xác nhận mật khẩu mới</Form.Label>
+                <Form.Control
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  isInvalid={!!passwordErrors.confirmNewPassword}
+                />
+                <Form.Control.Feedback type="invalid">
+                  {passwordErrors.confirmNewPassword}
+                </Form.Control.Feedback>
+              </Form.Group>
+
+              <Button
+                variant="primary"
+                type="submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
+              </Button>
+            </Form>
+          </Tab>
+
+          <Tab eventKey="avatar" title="Ảnh đại diện">
             <div className="image-editor-container">
               <div className="current-image-preview mb-4">
-                <h5>Current Profile Picture</h5>
+                <h5>Ảnh đại diện hiện tại</h5>
                 {!avatar && (
                   <img
                     src={avatarPreview}
-                    alt="Current Avatar"
+                    alt="Ảnh đại diện hiện tại"
                     className="current-avatar-preview"
                     onError={(e) => {
                       e.target.src = '/default-imgs/avatar.png';
@@ -538,7 +663,7 @@ const EditProfileModal = ({
 
               <div className="image-editor-controls">
                 <Form.Group className="mb-3">
-                  <Form.Label>Upload New Profile Picture</Form.Label>
+                  <Form.Label>Tải lên ảnh đại diện mới</Form.Label>
                   <Form.Control
                     type="file"
                     accept="image/*"
@@ -565,7 +690,7 @@ const EditProfileModal = ({
                     </div>
 
                     <Form.Group className="mt-3">
-                      <Form.Label>Zoom: {avatarZoom.toFixed(1)}x</Form.Label>
+                      <Form.Label>Thu phóng: {avatarZoom.toFixed(1)}x</Form.Label>
                       <Form.Range
                         min={1}
                         max={3}
@@ -580,14 +705,14 @@ const EditProfileModal = ({
             </div>
           </Tab>
 
-          <Tab eventKey="cover" title="Cover Photo">
+          <Tab eventKey="cover" title="Ảnh bìa">
             <div className="image-editor-container">
               <div className="current-image-preview mb-4">
-                <h5>Current Cover Photo</h5>
+                <h5>Ảnh bìa hiện tại</h5>
                 {!coverPhoto && (
                   <img
                     src={coverPreview}
-                    alt="Current Cover"
+                    alt="Ảnh bìa hiện tại"
                     className="current-cover-preview"
                     onError={(e) => {
                       e.target.src = '/default-imgs/cover.jpg';
@@ -598,7 +723,7 @@ const EditProfileModal = ({
 
               <div className="image-editor-controls">
                 <Form.Group className="mb-3">
-                  <Form.Label>Upload New Cover Photo</Form.Label>
+                  <Form.Label>Tải lên ảnh bìa mới</Form.Label>
                   <Form.Control
                     type="file"
                     accept="image/*"
@@ -624,7 +749,7 @@ const EditProfileModal = ({
                     </div>
 
                     <Form.Group className="mt-3">
-                      <Form.Label>Zoom: {coverZoom.toFixed(1)}x</Form.Label>
+                      <Form.Label>Thu phóng: {coverZoom.toFixed(1)}x</Form.Label>
                       <Form.Range
                         min={1}
                         max={3}
@@ -642,14 +767,14 @@ const EditProfileModal = ({
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide} disabled={isSubmitting}>
-          Cancel
+          Hủy
         </Button>
         <Button
           variant="primary"
           onClick={handleSubmit}
           disabled={isSubmitting}
         >
-          {isSubmitting ? 'Saving...' : 'Save Changes'}
+          {isSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
         </Button>
       </Modal.Footer>
     </Modal>
