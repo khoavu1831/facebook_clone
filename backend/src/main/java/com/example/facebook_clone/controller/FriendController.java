@@ -284,19 +284,20 @@ public class FriendController {
     @GetMapping("/suggestions/{userId}")
     public ResponseEntity<?> getFriendSuggestions(@PathVariable String userId) {
         try {
-            // Lấy danh sách bạn bè hiện tại
-            List<Friend> friends = friendRepository.findByUserIdOrFriendIdAndStatus(userId, userId, "ACCEPTED");
-            Set<String> friendIds = friends.stream()
+            // Chỉ lấy danh sách bạn bè đã được chấp nhận (ACCEPTED)
+            List<Friend> acceptedFriends = friendRepository.findByUserIdOrFriendIdAndStatus(userId, userId, "ACCEPTED");
+            Set<String> acceptedFriendIds = acceptedFriends.stream()
                     .map(friend -> friend.getUserId().equals(userId) ? friend.getFriendId() : friend.getUserId())
                     .collect(Collectors.toSet());
 
-            // Thêm userId vào set để loại trừ
-            friendIds.add(userId);
+            // Thêm userId vào set để loại trừ (không gợi ý chính mình)
+            acceptedFriendIds.add(userId);
 
-            // Lấy tất cả user trừ những người đã là bạn
+            // Lấy tất cả user trừ những người đã là bạn bè (ACCEPTED)
+            // Những người có trạng thái khác (PENDING, REJECTED) vẫn sẽ xuất hiện trong gợi ý
             List<User> allUsers = userRepository.findAll();
             List<User> suggestions = allUsers.stream()
-                    .filter(user -> !friendIds.contains(user.getId()))
+                    .filter(user -> !acceptedFriendIds.contains(user.getId()))
                     .limit(10)
                     .collect(Collectors.toList());
 
