@@ -113,7 +113,7 @@ Frontend kết nối với API backend bằng cách sử dụng cài đặt prox
 
 <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #1877f2;">
   <p><strong>MIT License</strong></p>
-  <p>Copyright (c) 2023 Facebook Clone Team</p>
+  <p>Copyright (c) 2025 Facebook Clone Team</p>
   
   <p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
   
