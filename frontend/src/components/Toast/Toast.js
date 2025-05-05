@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './Toast.css';
 
 /**
@@ -27,13 +27,16 @@ const ToastItem = ({ id, type, title, message, onClose, autoClose = true, durati
 
   // Tự động đóng thông báo sau một khoảng thời gian
   useEffect(() => {
+    let timer;
     if (autoClose) {
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         closeToast();
       }, duration);
-
-      return () => clearTimeout(timer);
     }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [autoClose, duration, closeToast]);
 
   /**
@@ -54,14 +57,32 @@ const ToastItem = ({ id, type, title, message, onClose, autoClose = true, durati
     }
   };
 
+  /**
+   * Xử lý sự kiện click nút đóng
+   * @param {Event} e - Sự kiện click
+   */
+  const handleCloseClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeToast();
+  };
+
   return (
-    <div className={`toast-item ${type} ${removing ? 'removing' : ''}`}>
+    <div 
+      className={`toast-item ${type} ${removing ? 'removing' : ''}`}
+      onClick={(e) => e.stopPropagation()} // Ngăn sự kiện click lan truyền
+    >
       <div className="toast-icon">{getIcon()}</div>
       <div className="toast-content">
         {title && <div className="toast-title">{title}</div>}
         {message && <div className="toast-message">{message}</div>}
       </div>
-      <button className="toast-close" onClick={closeToast} aria-label="Đóng thông báo">×</button>
+      <button 
+        className="toast-close" 
+        onClick={handleCloseClick} 
+        aria-label="Đóng thông báo"
+        type="button"
+      >×</button>
     </div>
   );
 };
@@ -73,10 +94,39 @@ const ToastItem = ({ id, type, title, message, onClose, autoClose = true, durati
  * @param {Function} props.removeToast - Hàm xử lý khi đóng thông báo
  */
 const Toast = ({ toasts, removeToast }) => {
+  const containerRef = useRef(null);
+  
+  // Theo dõi vị trí cuộn và cập nhật vị trí của toast
+  useEffect(() => {
+    if (!toasts || toasts.length === 0) return;
+    
+    const handleScroll = () => {
+      if (containerRef.current) {
+        const scrollTop = window.scrollY;
+        containerRef.current.style.top = `${Math.max(20, scrollTop + 20)}px`;
+      }
+    };
+    
+    // Thiết lập vị trí ban đầu
+    handleScroll();
+    
+    // Thêm event listener
+    window.addEventListener('scroll', handleScroll);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [toasts]);
+  
   if (!toasts || toasts.length === 0) return null;
 
   return (
-    <div className="toast-container">
+    <div 
+      className="toast-container" 
+      ref={containerRef}
+      onClick={(e) => e.stopPropagation()} // Ngăn sự kiện click lan truyền
+    >
       {toasts.map((toast) => (
         <ToastItem
           key={toast.id}
