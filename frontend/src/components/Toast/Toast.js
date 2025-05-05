@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './Toast.css';
 
 /**
@@ -94,11 +94,37 @@ const ToastItem = ({ id, type, title, message, onClose, autoClose = true, durati
  * @param {Function} props.removeToast - Hàm xử lý khi đóng thông báo
  */
 const Toast = ({ toasts, removeToast }) => {
+  const containerRef = useRef(null);
+  
+  // Theo dõi vị trí cuộn và cập nhật vị trí của toast
+  useEffect(() => {
+    if (!toasts || toasts.length === 0) return;
+    
+    const handleScroll = () => {
+      if (containerRef.current) {
+        const scrollTop = window.scrollY;
+        containerRef.current.style.top = `${Math.max(20, scrollTop + 20)}px`;
+      }
+    };
+    
+    // Thiết lập vị trí ban đầu
+    handleScroll();
+    
+    // Thêm event listener
+    window.addEventListener('scroll', handleScroll);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [toasts]);
+  
   if (!toasts || toasts.length === 0) return null;
 
   return (
     <div 
       className="toast-container" 
+      ref={containerRef}
       onClick={(e) => e.stopPropagation()} // Ngăn sự kiện click lan truyền
     >
       {toasts.map((toast) => (

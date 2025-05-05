@@ -4,6 +4,7 @@
   right: 20px;
   z-index: 9999; /* Đảm bảo toast hiển thị trên tất cả các phần tử khác */
   max-width: 350px;
+  transition: top 0.3s ease; /* Thêm transition để di chuyển mượt mà */
 }
 
 .toast-item {
