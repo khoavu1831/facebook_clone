@@ -36,7 +36,12 @@ export const ToastProvider = ({ children }) => {
    * @param {string} id - ID của thông báo cần xóa
    */
   const removeToast = useCallback((id) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
+    console.log('Removing toast with ID:', id);
+    setToasts(prev => {
+      const filtered = prev.filter(toast => toast.id !== id);
+      console.log('Toasts after removal:', filtered);
+      return filtered;
+    });
   }, []);
 
   /**
