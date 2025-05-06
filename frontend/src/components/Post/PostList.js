@@ -8,6 +8,7 @@ import PostOptionsMenu from './PostOptionsMenu';
 import ImageViewerModal from './ImageViewerModal';
 import { useNavigate } from 'react-router-dom';
 import CommentSuggestions from '../CommentSuggestions';
+import { Modal, Button } from 'react-bootstrap';
 
 /**
  * Component hiển thị nội dung bài đăng, được memo để tránh render lại không cần thiết
@@ -806,6 +807,10 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
   const subscribedPosts = useRef(new Set());
   const [isLoggedIn, setIsLoggedIn] = useState(!!currentUser);
   const { showSuccess, showError } = useToast();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [postToDelete, setPostToDelete] = useState(null);
+  const [commentToDelete, setCommentToDelete] = useState(null);
+  const [showDeleteCommentModal, setShowDeleteCommentModal] = useState(false);
 
   // Sort posts by createdAt in descending order (newest first)
   useEffect(() => {
@@ -965,12 +970,14 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
 
   // Xử lý xóa bài viết
   const handleDeletePost = async (postId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa bài viết này?')) {
-      return;
-    }
+    setPostToDelete(postId);
+    setShowDeleteModal(true);
+  };
 
+  // Thực hiện xóa bài viết sau khi xác nhận
+  const confirmDeletePost = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts/${postId}?userId=${currentUser.id}`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts/${postToDelete}?userId=${currentUser.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('userToken')}`
@@ -986,15 +993,20 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
       }
 
       // Xóa bài viết khỏi UI
-      setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+      setPosts(prevPosts => prevPosts.filter(post => post.id !== postToDelete));
       showSuccess('Xóa bài viết thành công');
 
       // Hủy đăng ký WebSocket
-      webSocketService.unsubscribeFromPost(postId);
-      subscribedPosts.current.delete(postId);
+      webSocketService.unsubscribeFromPost(postToDelete);
+      subscribedPosts.current.delete(postToDelete);
+      
+      // Đóng modal
+      setShowDeleteModal(false);
+      setPostToDelete(null);
     } catch (error) {
       console.error('Lỗi khi xóa bài viết:', error);
       showError(error.message || 'Không thể xóa bài viết. Vui lòng thử lại.');
+      setShowDeleteModal(false);
     }
   };
 
@@ -1155,10 +1167,14 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
 
   // Xử lý xóa bình luận
   const handleDeleteComment = async (postId, commentId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa bình luận này?')) {
-      return;
-    }
+    setCommentToDelete({ postId, commentId });
+    setShowDeleteCommentModal(true);
+  };
 
+  // Thực hiện xóa bình luận sau khi xác nhận
+  const confirmDeleteComment = async () => {
+    const { postId, commentId } = commentToDelete;
+    
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts/${postId}/comments/${commentId}?userId=${currentUser.id}`, {
         method: 'DELETE',
@@ -1188,6 +1204,9 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
     } catch (error) {
       console.error('Lỗi khi xóa bình luận:', error);
       showError(error.message || 'Không thể xóa bình luận. Vui lòng thử lại.');
+    } finally {
+      setShowDeleteCommentModal(false);
+      setCommentToDelete(null);
     }
   };
 
@@ -1292,6 +1311,44 @@ const PostList = ({ posts: initialPosts, currentUser }) => {
           onShareSuccess={handleShareSuccess}
         />
       )}
+      
+      {/* Delete Confirmation Modal */}
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Xác nhận xóa</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Bạn có chắc chắn muốn xóa bài viết này?</p>
+          <p className="text-danger">Lưu ý: Hành động này không thể hoàn tác và sẽ xóa tất cả dữ liệu liên quan đến bài viết này.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+            Hủy
+          </Button>
+          <Button variant="danger" onClick={confirmDeletePost}>
+            Xóa
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Delete Comment Confirmation Modal */}
+      <Modal show={showDeleteCommentModal} onHide={() => setShowDeleteCommentModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Xác nhận xóa bình luận</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Bạn có chắc chắn muốn xóa bình luận này?</p>
+          <p className="text-danger">Lưu ý: Hành động này không thể hoàn tác.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteCommentModal(false)}>
+            Hủy
+          </Button>
+          <Button variant="danger" onClick={confirmDeleteComment}>
+            Xóa
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }
