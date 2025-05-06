@@ -9,6 +9,7 @@ import RightSidebar from '../../components/RightSidebar';
 import SharePostModal from '../../components/Post/SharePostModal';
 import PostOptionsMenu from '../../components/Post/PostOptionsMenu';
 import ImageViewerModal from '../../components/Post/ImageViewerModal';
+import { Modal, Button } from 'react-bootstrap';
 import './PostDetail.css';
 import CommentSuggestions from '../../components/CommentSuggestions';
 
@@ -33,6 +34,9 @@ const PostDetail = () => {
   const [isLoading, setIsLoading] = useState({});
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState(null);
+  const [showDeleteCommentModal, setShowDeleteCommentModal] = useState(false);
 
   // Ref for highlighted comment
   const highlightedCommentRef = useRef(null);
@@ -340,8 +344,13 @@ const PostDetail = () => {
   };
 
   const handleDeleteComment = async (commentId) => {
+    setCommentToDelete(commentId);
+    setShowDeleteCommentModal(true);
+  };
+
+  const confirmDeleteComment = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts/${postId}/comments/${commentId}?userId=${currentUser.id}`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts/${postId}/comments/${commentToDelete}?userId=${currentUser.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('userToken')}`
@@ -352,10 +361,14 @@ const PostDetail = () => {
         throw new Error('Failed to delete comment');
       }
 
+      showSuccess('Bình luận đã được xóa thành công');
       // WebSocket will update the post
     } catch (error) {
       console.error('Error deleting comment:', error);
-      showError('Failed to delete comment. Please try again.');
+      showError('Không thể xóa bình luận. Vui lòng thử lại.');
+    } finally {
+      setShowDeleteCommentModal(false);
+      setCommentToDelete(null);
     }
   };
 
@@ -390,6 +403,10 @@ const PostDetail = () => {
   };
 
   const handleDeletePost = async () => {
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeletePost = async () => {
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/posts/${postId}?userId=${currentUser.id}`, {
         method: 'DELETE',
@@ -403,10 +420,12 @@ const PostDetail = () => {
       }
 
       showSuccess('Post deleted successfully');
+      setShowDeleteModal(false);
       navigate('/'); // Redirect to home page
     } catch (error) {
       console.error('Error deleting post:', error);
       showError('Failed to delete post. Please try again.');
+      setShowDeleteModal(false);
     }
   };
 
@@ -1064,6 +1083,44 @@ const PostDetail = () => {
           getFullImageUrl={getFullImageUrl}
         />
       )}
+
+      {/* Thêm modal xác nhận xóa bài viết */}
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Xác nhận xóa</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Bạn có chắc chắn muốn xóa bài viết này?</p>
+          <p className="text-danger">Lưu ý: Hành động này không thể hoàn tác và sẽ xóa tất cả dữ liệu liên quan đến bài viết này.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+            Hủy
+          </Button>
+          <Button variant="danger" onClick={confirmDeletePost}>
+            Xóa
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Delete Comment Confirmation Modal */}
+      <Modal show={showDeleteCommentModal} onHide={() => setShowDeleteCommentModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Xác nhận xóa bình luận</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Bạn có chắc chắn muốn xóa bình luận này?</p>
+          <p className="text-danger">Lưu ý: Hành động này không thể hoàn tác.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteCommentModal(false)}>
+            Hủy
+          </Button>
+          <Button variant="danger" onClick={confirmDeleteComment}>
+            Xóa
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };
